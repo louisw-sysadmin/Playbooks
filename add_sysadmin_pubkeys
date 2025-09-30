@@ -1,0 +1,14 @@
+---
+- name: Push SSH key to lambda hosts
+  hosts: lambda
+  gather_facts: no
+  vars:
+    ansible_user: sysadmin   # adjust if remote user differs
+
+  tasks:
+    - name: Install authorized key for sysadmin
+      ansible.posix.authorized_key:
+        user: sysadmin
+        state: present
+        key: "{{ lookup('file', '~/.ssh/id_ed25519.pub') }}"
+

@@ -1,0 +1,8 @@
+---
+
+- hosts: all
+  become: false
+  tasks:
+    - name: Ping without sudo
+      ansible.builtin.ping:
+

@@ -1,0 +1,13 @@
+---
+- name: Download lambda stack installer
+  ansible.builtin.get_url:
+    url: https://lambda.ai/install-lambda-stack.sh
+    dest: /tmp/install-lambda-stack.sh
+    mode: '0755'
+
+- name: Run lambda stack installer silently
+  ansible.builtin.shell: |
+    /tmp/install-lambda-stack.sh --yes
+  args:
+    executable: /bin/bash
+
