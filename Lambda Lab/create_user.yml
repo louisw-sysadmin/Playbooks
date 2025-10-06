@@ -1,0 +1,19 @@
+---
+- name: Add new user to Linux servers
+  hosts: all
+  become: true
+  vars:
+    username: "{{ username }}"
+    email: "{{ email }}"
+    full_name: "{{ full_name }}"
+
+  tasks:
+    - name: Ensure user exists
+      ansible.builtin.user:
+        name: "{{ username }}"
+        shell: /bin/bash
+        create_home: yes
+
+    - name: Add full name and email as comment
+      ansible.builtin.command:
+        cmd: "chfn -f '{{ full_name }} ({{ email }})' {{ username }}"
