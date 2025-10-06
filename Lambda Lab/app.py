@@ -44,10 +44,14 @@ def send_email_notification(name, email, username):
 # ==============================
 # Routes
 # ==============================
+# ==============================
+# Routes
+# ==============================
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
-        name = request.form["name"]
+        # Match the field names in your HTML form
+        name = request.form["fullname"]
         email = request.form["email"]
         username = email.split("@")[0]
 
@@ -82,3 +86,4 @@ def index():
 if __name__ == "__main__":
     # Run the Flask web app
     app.run(host="0.0.0.0", port=5000)
+
