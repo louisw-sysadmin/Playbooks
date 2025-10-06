@@ -1,51 +1,84 @@
-from flask import Flask, render_template, request, redirect, flash
-import subprocess, smtplib
-from email.mime.text import MIMEText
+from flask import Flask, render_template, request, redirect
+from flask_mail import Mail, Message
+import subprocess
+import csv
+import os
 
 app = Flask(__name__)
-app.secret_key = "supersecret"
+app.secret_key = "supersecretkey"
 
-ADMIN_EMAIL = "louisw@email.com"
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
-SMTP_PASSWORD = "YOUR_APP_PASSWORD"
+# ==============================
+# Outlook Email Configuration
+# ==============================
+app.config.update(
+    MAIL_SERVER='smtp.office365.com',
+    MAIL_PORT=587,
+    MAIL_USE_TLS=True,
+    MAIL_USERNAME='your_outlook_email@outlook.com',
+    MAIL_PASSWORD='your_outlook_app_password',  # Use an Outlook app password
+    MAIL_DEFAULT_SENDER='your_outlook_email@outlook.com'
+)
 
+mail = Mail(app)
+
+# ==============================
+# Helper: Send Email Notification
+# ==============================
+def send_email_notification(name, email, username):
+    msg = Message(
+        subject="New user added",
+        recipients=["your_outlook_email@outlook.com"]
+    )
+    msg.body = (
+        f"A new user has been added.\n\n"
+        f"Name: {name}\n"
+        f"Email: {email}\n"
+        f"Username: {username}\n"
+    )
+    try:
+        mail.send(msg)
+        print(f"[INFO] Notification email sent for {username}")
+    except Exception as e:
+        print(f"[ERROR] Failed to send email: {e}")
+
+# ==============================
+# Routes
+# ==============================
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
-        full_name = request.form["fullname"].strip()
-        email = request.form["email"].strip()
-
-        # Require WIT email
-        if not email.endswith("@wit.edu"):
-            flash("Please use your WIT email address (@wit.edu).", "error")
-            return redirect("/")
-
+        name = request.form["name"]
+        email = request.form["email"]
         username = email.split("@")[0]
 
-        # Run Ansible playbook
-        subprocess.run([
-            "ansible-playbook", "create_user.yml",
-            "--extra-vars", f"username={username} email={email} full_name='{full_name}'"
-        ])
+        # Save user info to CSV
+        file_exists = os.path.isfile("users.csv")
+        with open("users.csv", "a", newline="") as csvfile:
+            writer = csv.writer(csvfile)
+            if not file_exists:
+                writer.writerow(["Name", "Email", "Username"])
+            writer.writerow([name, email, username])
 
-        # Send admin notification
-        send_admin_email(username, full_name, email)
-        flash(f"Account request for {full_name} ({username}) has been submitted.", "success")
+        # Run Ansible playbook to create the user
+        try:
+            subprocess.run([
+                "ansible-playbook",
+                "create_user.yml",
+                "--extra-vars",
+                f"username={username}"
+            ], check=True)
+            print(f"[INFO] User {username} created via Ansible.")
+        except subprocess.CalledProcessError as e:
+            print(f"[ERROR] Ansible failed: {e}")
+
+        # Send notification email
+        send_email_notification(name, email, username)
+
         return redirect("/")
+
     return render_template("index.html")
 
-def send_admin_email(username, full_name, email):
-    msg = MIMEText(f"New GPU Labs user added:\n\nFull Name: {full_name}\nUsername: {username}\nEmail: {email}")
-    msg["Subject"] = "New Lambda GPU Labs User Created"
-    msg["From"] = ADMIN_EMAIL
-    msg["To"] = ADMIN_EMAIL
-
-    with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-        server.starttls()
-        server.login(ADMIN_EMAIL, SMTP_PASSWORD)
-        server.send_message(msg)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
-
+    # Run the Flask web app
+    app.run(host="0.0.0.0", port=5000)
