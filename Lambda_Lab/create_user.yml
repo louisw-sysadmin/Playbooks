@@ -1,6 +1,6 @@
 ---
 - name: Add new user to Linux servers
-  hosts: all
+  hosts: lambda 
   become: true
 
   vars:
