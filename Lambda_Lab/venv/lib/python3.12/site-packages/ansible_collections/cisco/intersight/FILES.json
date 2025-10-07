@@ -1,0 +1,1244 @@
+{
+ "files": [
+  {
+   "name": ".",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "misc",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "misc/CL2020 EMEAR DEVWKS-1542 Intersight Ansible Lab Guide.pdf",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "5b15d28312a255524c6da61ce4ba75a4fa8b4f92d89d66edead1e163dbad143c",
+   "format": 1
+  },
+  {
+   "name": "misc/README.md",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "e61dd07deb821f7d7de15f2667c7b8c0a636efab8ad63484badfeb37ad6d7796",
+   "format": 1
+  },
+  {
+   "name": ".DS_Store",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "ef2aae8564da08e7f7831fd55b5bbac1bd93fd1a57da76f3ce99b31f2f5a06d0",
+   "format": 1
+  },
+  {
+   "name": "requirements.txt",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "7b7a726cd2922c7eb5a5a5a59b6c37c3cb4e02bb8f75039dffbae22b228b1be0",
+   "format": 1
+  },
+  {
+   "name": "CHANGELOG.md",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "3a197c15d884b7feb85d6b48105fc9f4fd81b8ae7a2f21b894bc7c89649e47cb",
+   "format": 1
+  },
+  {
+   "name": "plugins",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "plugins/doc_fragments",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "plugins/doc_fragments/intersight.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "50ef356793159f5351aa27a6f7fe8547d2c7dba9ef27534cc8656d7e06fd4b8e",
+   "format": 1
+  },
+  {
+   "name": "plugins/README.md",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "c82ee692702ec1dd604cdbc38ff252114e5204e1b0627045a66c9451e7a918ac",
+   "format": 1
+  },
+  {
+   "name": "plugins/module_utils",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "plugins/module_utils/intersight.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "4b5beb63552ee8e8105340a8d9911c008a7d5254c7277d6fed7f9a1818723458",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_syslog_policy.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "5e315362249714794b7d182c826e9ecef0cf234b76dfab8dfb2a73490bfe01e6",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_virtual_media_policy.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "39ab7a22f7e912e38efa84219f7b48b454d53418ce5ca44316ad8ca7ec58693f",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_multicast_policy_info.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "b9a5b3a6f45e00ef6cd6696da58468c7378e6e90420e3bfbf323e8ca0fc96d68",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_network_connectivity_policy_info.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "047f5e0610e5d42810373169d80a9d5902679de346e3ecace53bc83b9c2f4fe6",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_mac_pool.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "56043d41550ddb2551d558c3233ccb70d61453e59f2e027b5f8c6f84a2b6841c",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_thermal_policy_info.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "92520fd05c082f67729ab01e36c72d42056a4c7673757398495f561b1d29366f",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_syslog_policy_info.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "b9e7714f0da58193c71ae44b7a849224cd0a0e3a3c21f362d683f203f9398bd7",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_bios_policy.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "c2608b3fe15046b262ab57a0f7853d83e0f1bec35e0da15018b372246b7d05a1",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_snmp_policy_info.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "c47a7aab23bb1d58698a8e9fee20a3a376c946eb5c8da4049b7661f8a711da14",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_vlan_policy.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "feb3ba1a4ef2d24b9c06bb5c5f63cdd45873915357768b00a9302ef1b70447f3",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_mac_pool_info.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "2038e748111e279cd4ccb9bf757a1d5f07c5f224ed357c0af149cbc78cc49b40",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_server_profile.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "6e43eed2260c58c6eee38ebfeb94d94a2d48be3ccc732795db0def244602f9d8",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_imc_access_policy.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "c93fd91009f0051bd4f46c23914523aa7f38b88ecb95e1f1c0627877e34fb7f7",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_rest_api.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "a7807cca3379c6f58c7cc1a3f86f9c0847a621f2bacf1696f7b470a35c4e844e",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_boot_order_policy.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "589c7674483de54cd460a5a2983a06c6fe3b4a41faa9931df5828bf767d9f735",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_uuid_pool_info.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "7b4ce8d281e95ab47457720806d60f6d6c4a8a76700a27c465f4f648c7809e94",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_target_claim.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "2d6ebf15127175f1065c97515148d0a848910f8327a90e03986e7d33eeeea7e7",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_network_connectivity_policy.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "df82b1d376dfd4074a4283e633735985c47eb4f7cbd2b63310616976abc39f0a",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_power_policy_info.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "e5d485299f2038b34bf13f206645b69d67ea658ce66177e99da5684c3e48dd86",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_ip_pool_info.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "ba64212540f37d358ea451436895ae7954bf00b84197d26d7f3ba2d9e263d92a",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_local_user_policy.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "603668dc33b76af04c350e9e4bffd323e52451a51721ccf4536cf98fbcf81eb9",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_info.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "6ac0ee7c7ae56e22ddde5d467b183c6e3256a4da7778a5f43d3edd2a28b920d0",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_thermal_policy.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "72da3ecbc7008c0e20e9d31bbd9243bd9dfde1795f2b0c1c1bec5825616e0aba",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_ntp_policy.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "18f612f83c34524d1c1593f465f00c368b4a61d7d5df5cc877ddf4cba12e1c83",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_multicast_policy.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "f085dabd45083ffc3c332556bcddb96e718321157399416eb2b2d6cb0cf74178",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_snmp_policy.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "590482979bf3695f2f76f2263f17c51f67e11f81e637fe0bdcca75c724095402",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_vlan_policy_info.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "892aa93b4104bebd3f6615689596aac76e9edd61722f37f8faf7902bd18ec773",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_ip_pool.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "52afe6e4a8361870e7779117ecff50b91e448281a34efa33b7939fdd51b1940a",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_power_policy.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "a84eaba5150ad40ca78839bac0773484d469db1d7f5e1dae1499c3cf7f74899d",
+   "format": 1
+  },
+  {
+   "name": "plugins/modules/intersight_uuid_pool.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "da934b6cbb68b82af0f89a315a39e93d921fc64b236dc5cf1f5fbef90795355d",
+   "format": 1
+  },
+  {
+   "name": "tests",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_snmp_policy",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_snmp_policy/tasks",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_snmp_policy/tasks/tests.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "95057a153727abd12872f43ff2bf72f12e5707fdbe4434bb5a72347836977f38",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_snmp_policy/tasks/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "0a8d016653f53a1f2bca9cb258f62c97e94e1efe8d8cf91ae53fd24683d19304",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_snmp_policy/meta",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_snmp_policy/meta/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "5c6f800c436e85ab64d4c775c67b26506b8bce15e5b68bcc4e5460d51e62a1b2",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_snmp_policy/defaults",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_snmp_policy/defaults/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "be3ba4adcd73e345b858d44718322e9f33ab8c37ed17e6c84bcd96bda3ed1ecb",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_bios_policy",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_bios_policy/tasks",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_bios_policy/tasks/tests.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "888d36aa7d6e263cd3088b408211907af3b835ecdd91df80a0f295439f5c55bc",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_bios_policy/tasks/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "0a8d016653f53a1f2bca9cb258f62c97e94e1efe8d8cf91ae53fd24683d19304",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_bios_policy/meta",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_bios_policy/meta/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "5c6f800c436e85ab64d4c775c67b26506b8bce15e5b68bcc4e5460d51e62a1b2",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_bios_policy/defaults",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_bios_policy/defaults/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "be3ba4adcd73e345b858d44718322e9f33ab8c37ed17e6c84bcd96bda3ed1ecb",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_power_policy",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_power_policy/tasks",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_power_policy/tasks/tests.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "4926688fcbd1f39527f948bf2271c3bc0158676fdda30fa29b4b094206fa061c",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_power_policy/tasks/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "d506e499fe41e55b99423a64ab69a0ec8e00e7f0cd0af7e32d1a9286b32789bb",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_power_policy/meta",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_power_policy/meta/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "6281a05ac6f826d5d813f31feaa34a8e491e8a76362a1423b9b618bc069100c8",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_power_policy/defaults",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_power_policy/defaults/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "1be03fb9bf92659cef93f07ccde5a8b4093c14ef6996a412f7522e4e721cb0e4",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/__init__.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_ntp_policy",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_ntp_policy/tasks",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_ntp_policy/tasks/tests.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "4e8a528f0db2361d17c5f5ac86e6cc7f8e8de90e3628d6450f9a9a04b5381ad3",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_ntp_policy/tasks/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "0a8d016653f53a1f2bca9cb258f62c97e94e1efe8d8cf91ae53fd24683d19304",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_ntp_policy/meta",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_ntp_policy/meta/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "5c6f800c436e85ab64d4c775c67b26506b8bce15e5b68bcc4e5460d51e62a1b2",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_ntp_policy/defaults",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_ntp_policy/defaults/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "be3ba4adcd73e345b858d44718322e9f33ab8c37ed17e6c84bcd96bda3ed1ecb",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_network_connectivity_policy",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_network_connectivity_policy/tasks",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_network_connectivity_policy/tasks/tests.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "1f358ac8226bdb4ea3fbc16378f1d088b5074272938860f1ebc9451647270b96",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_network_connectivity_policy/tasks/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "0a8d016653f53a1f2bca9cb258f62c97e94e1efe8d8cf91ae53fd24683d19304",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_network_connectivity_policy/meta",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_network_connectivity_policy/meta/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "5c6f800c436e85ab64d4c775c67b26506b8bce15e5b68bcc4e5460d51e62a1b2",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_network_connectivity_policy/defaults",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_network_connectivity_policy/defaults/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "be3ba4adcd73e345b858d44718322e9f33ab8c37ed17e6c84bcd96bda3ed1ecb",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_syslog_policy",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_syslog_policy/tasks",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_syslog_policy/tasks/tests.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "439227291e25be4bc11e371e2d67cddadc05d32b230aa8d873506a1969864be8",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_syslog_policy/tasks/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "d506e499fe41e55b99423a64ab69a0ec8e00e7f0cd0af7e32d1a9286b32789bb",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_syslog_policy/meta",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_syslog_policy/meta/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "6281a05ac6f826d5d813f31feaa34a8e491e8a76362a1423b9b618bc069100c8",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_syslog_policy/defaults",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_syslog_policy/defaults/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "1be03fb9bf92659cef93f07ccde5a8b4093c14ef6996a412f7522e4e721cb0e4",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_ip_pool",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_ip_pool/tasks",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_ip_pool/tasks/tests.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "e9c6d5ac3f1e0f0e0c29c50aa8986ffba15099b86e7f8653b9c32b62f891853a",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_ip_pool/tasks/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "d506e499fe41e55b99423a64ab69a0ec8e00e7f0cd0af7e32d1a9286b32789bb",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_ip_pool/meta",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_ip_pool/meta/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "6281a05ac6f826d5d813f31feaa34a8e491e8a76362a1423b9b618bc069100c8",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_ip_pool/defaults",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_ip_pool/defaults/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "1be03fb9bf92659cef93f07ccde5a8b4093c14ef6996a412f7522e4e721cb0e4",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_rest_api",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_rest_api/tasks",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_rest_api/tasks/tests.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "fcdb57375f7a647274b6d26be6c7cb0e8da9b6a9d4816f57e191c08af106db7d",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_rest_api/tasks/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "3a5a79009161f7735b5910b84fb0c7f5b5cbe107b5e490056ae42368479f140f",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_rest_api/meta",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_rest_api/meta/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "5c6f800c436e85ab64d4c775c67b26506b8bce15e5b68bcc4e5460d51e62a1b2",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_rest_api/defaults",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_rest_api/defaults/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "40f2da1785983898a43a2eea9bf5b98c614c38492b9d46a042e601750bf6c824",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/prepare_test_run",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/prepare_test_run/tasks",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/prepare_test_run/tasks/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "165ea6b33d0bb623ed20e3d6ac74f75b59c6e004850a3c19d3c2ff850b8c56ff",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/prepare_test_run/integration_config.yml.tpl",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "797004c6c20a2be1a66e06035cb30888d37b24bf1b027ac64de2d75a4d31b173",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/prepare_test_run/generate_integration_config.sh",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "23d1ea9722dc3ff18d2db2fefffc5e394cc7d9faff4f802648ab83e815ea605a",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_multicast_policy",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_multicast_policy/tasks",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_multicast_policy/tasks/tests.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "3c095824d1382ec326151ba1df9f68a89e9c623d72ca03da156e72848174f8b7",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_multicast_policy/tasks/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "0a8d016653f53a1f2bca9cb258f62c97e94e1efe8d8cf91ae53fd24683d19304",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_multicast_policy/meta",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_multicast_policy/meta/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "5c6f800c436e85ab64d4c775c67b26506b8bce15e5b68bcc4e5460d51e62a1b2",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_multicast_policy/defaults",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_multicast_policy/defaults/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "be3ba4adcd73e345b858d44718322e9f33ab8c37ed17e6c84bcd96bda3ed1ecb",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_vlan_policy",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_vlan_policy/tasks",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_vlan_policy/tasks/tests.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "e9f4aea135cad77945c2e92e6c386ff31ae44fb8f5dc3a5826dd93afa880b5b0",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_vlan_policy/tasks/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "0a8d016653f53a1f2bca9cb258f62c97e94e1efe8d8cf91ae53fd24683d19304",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_vlan_policy/meta",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_vlan_policy/meta/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "5c6f800c436e85ab64d4c775c67b26506b8bce15e5b68bcc4e5460d51e62a1b2",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_vlan_policy/defaults",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_vlan_policy/defaults/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "be3ba4adcd73e345b858d44718322e9f33ab8c37ed17e6c84bcd96bda3ed1ecb",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_uuid_pool",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_uuid_pool/tasks",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_uuid_pool/tasks/tests.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "f0aeeb7db17479eebf215cec5064e1731d43097bb47cef1022e9b37d1e56a8d2",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_uuid_pool/tasks/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "d506e499fe41e55b99423a64ab69a0ec8e00e7f0cd0af7e32d1a9286b32789bb",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_uuid_pool/meta",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_uuid_pool/meta/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "6281a05ac6f826d5d813f31feaa34a8e491e8a76362a1423b9b618bc069100c8",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_uuid_pool/defaults",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_uuid_pool/defaults/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "1be03fb9bf92659cef93f07ccde5a8b4093c14ef6996a412f7522e4e721cb0e4",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_mac_pool",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_mac_pool/tasks",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_mac_pool/tasks/tests.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "266e247506bdcb6d7aa5129bda52c3581d7ad8ddba627aaf5ae2eb22d4a95bb4",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_mac_pool/tasks/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "d506e499fe41e55b99423a64ab69a0ec8e00e7f0cd0af7e32d1a9286b32789bb",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_mac_pool/meta",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_mac_pool/meta/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "6281a05ac6f826d5d813f31feaa34a8e491e8a76362a1423b9b618bc069100c8",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_mac_pool/defaults",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_mac_pool/defaults/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "1be03fb9bf92659cef93f07ccde5a8b4093c14ef6996a412f7522e4e721cb0e4",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_thermal_policy",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_thermal_policy/tasks",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_thermal_policy/tasks/tests.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "344593a557d000b74c2d8d9df7bc00d4ab0cad900c61e9e6842c5ddda8eee650",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_thermal_policy/tasks/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "d506e499fe41e55b99423a64ab69a0ec8e00e7f0cd0af7e32d1a9286b32789bb",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_thermal_policy/meta",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_thermal_policy/meta/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "6281a05ac6f826d5d813f31feaa34a8e491e8a76362a1423b9b618bc069100c8",
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_thermal_policy/defaults",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "tests/integration/targets/intersight_thermal_policy/defaults/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "1be03fb9bf92659cef93f07ccde5a8b4093c14ef6996a412f7522e4e721cb0e4",
+   "format": 1
+  },
+  {
+   "name": "tests/config.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "4b09860144d96c87c5345bba1463d0a60593100b97473cdb7ead73e6304cafcf",
+   "format": 1
+  },
+  {
+   "name": "meta",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "meta/execution-environment.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "0cd0b966cbb8fefb00f7122190d7a9b42dc5da517a8c5ba9d86e34c51bc3e43a",
+   "format": 1
+  },
+  {
+   "name": "meta/runtime.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "cec2a5e51d50837a928483bad0c0c5491f5210d331a0f097a42ac1807aabe724",
+   "format": 1
+  },
+  {
+   "name": "roles",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "docs",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": "README.md",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "820fd9c809c2747ec988c6d5378ae6d65e0e7d944157cd28c8609efe657ea6f9",
+   "format": 1
+  },
+  {
+   "name": ".ansible-lint",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "a15c4efa76ba7349564a0e802787a167707d9025f1748cec630cd066398abd0c",
+   "format": 1
+  },
+  {
+   "name": ".gitignore",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "daf9a841d96fd66c3358a7ba3a3524dd09c309097d71438f7280d987a6a5080c",
+   "format": 1
+  },
+  {
+   "name": ".github",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": ".github/workflows",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": ".github/workflows/ansible-test.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "2fb07a9eb54a3fe6f0604b7b1d6c747940648f32046d3b35a2b08dbc72e788e6",
+   "format": 1
+  },
+  {
+   "name": ".github/workflows/scripts",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": ".github/workflows/scripts/map_changes_to_tests.py",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "a89e146e1e112490542c5283573fd1e0393372305d6e229185abcf4f5ee7512d",
+   "format": 1
+  },
+  {
+   "name": ".github/workflows/info.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "0782d6f4d50c5361ebdfafcba47b89f94b08df1d62f1371c18ea238e7c902621",
+   "format": 1
+  },
+  {
+   "name": ".github/workflows/main.yml",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "08ef8671bd5131c9f3262ac96fbf06e9d618ccf6741cc3f08d758fe4fe850906",
+   "format": 1
+  },
+  {
+   "name": "LICENSE.txt",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "30cd47435d09af02a38c1f286279009584f2a88ce02f05c34da23e617131f268",
+   "format": 1
+  },
+  {
+   "name": ".vscode",
+   "ftype": "dir",
+   "chksum_type": null,
+   "chksum_sha256": null,
+   "format": 1
+  },
+  {
+   "name": ".vscode/settings.json",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "be935285d998e568e5039a0960a20e001b938299ab81d44789211d6b13abc3d1",
+   "format": 1
+  },
+  {
+   "name": "Development.md",
+   "ftype": "file",
+   "chksum_type": "sha256",
+   "chksum_sha256": "c928aeefe50d3eb2016604a8b6c78bcdf2bd8cd4065178dfbb9e9b09dbd42a3f",
+   "format": 1
+  }
+ ],
+ "format": 1
+}

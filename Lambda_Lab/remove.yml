@@ -1,0 +1,14 @@
+---
+- name: Remove a user from all target computers
+  hosts: lambda
+  become: yes  # This is necessary for privilege escalation (e.g., sudo)
+  tasks:
+    - name: Ensure the user is removed
+      ansible.builtin.user:
+        name: louisw  # REPLACE THIS with the actual username
+        state: absent
+        remove: yes  # Delete the user's home directory and mail spool
+      
+    - name: Print a success message for removal
+      ansible.builtin.debug:
+        msg: "User 'username_to_remove' has been removed from {{ inventory_hostname }}"

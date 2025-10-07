@@ -1,21 +1,30 @@
 ---
 - name: Add new user to Linux servers
-  hosts: all
+  hosts: all:!localhost
   become: true
   vars:
     username: "{{ username }}"
-    full_name: "{{ full_name }}"
     email: "{{ email }}"
-    password: "{{ password }}"
+    full_name: "{{ full_name }}"
+    password: "{{ password | password_hash('sha512') }}"
+    group_name: "students"
 
   tasks:
-    - name: Ensure user exists
+    - name: Ensure "students" group exists
+      ansible.builtin.group:
+        name: "{{ group_name }}"
+        state: present
+
+    - name: Ensure user exists and is in the students group
       ansible.builtin.user:
         name: "{{ username }}"
         shell: /bin/bash
         create_home: yes
-        password: "{{ password | password_hash('sha512') }}"
+        groups: "{{ group_name }}"
+        append: yes
+        password: "{{ password }}"
 
-    - name: Set full name and email as comment
+    - name: Add full name and email as comment
       ansible.builtin.command:
         cmd: "chfn -f '{{ full_name }} ({{ email }})' {{ username }}"
+
