@@ -12,11 +12,12 @@ import logging
 app = Flask(__name__)
 
 # ==============================
-# Logging configuration (file: warnings+, console: info+)
+# Logging configuration
 # ==============================
 LOG_FILE = "/var/log/lambda_app.log"
 os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
 
+# --- File: warnings and errors only ---
 file_handler = logging.FileHandler(LOG_FILE)
 file_handler.setLevel(logging.WARNING)
 file_handler.setFormatter(logging.Formatter(
@@ -24,6 +25,7 @@ file_handler.setFormatter(logging.Formatter(
     "%Y-%m-%d %H:%M:%S"
 ))
 
+# --- Console: show all INFO+ ---
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.INFO)
 console_handler.setFormatter(logging.Formatter(
@@ -50,7 +52,7 @@ app.config.update(
 mail = Mail(app)
 
 # ==============================
-# Helpers
+# Helper functions
 # ==============================
 def generate_password(length=10):
     chars = string.ascii_letters + string.digits
@@ -118,7 +120,6 @@ def check_username_exists(username):
     Returns (exists_on_hosts, unreachable_hosts).
     """
     try:
-        # Use an ad-hoc Ansible command to check 'id -u <username>'
         res = subprocess.run(
             [
                 "ansible",
@@ -135,27 +136,31 @@ def check_username_exists(username):
         exists = []
         unreachable = []
 
-        # Parse typical ad-hoc output lines, e.g.:
-        # lambda1 | SUCCESS | rc=0 >>
-        # lambda15 | UNREACHABLE! => ...
         for line in (stdout + "\n" + stderr).splitlines():
             line = line.strip()
             if not line:
                 continue
-            # UNREACHABLE
             if "UNREACHABLE!" in line:
                 host = line.split()[0]
                 unreachable.append(host)
-            # SUCCESS with rc=0 means user exists
-            elif "| SUCCESS" in line and "rc=0" in line:
+            elif "| SUCCESS" in line:
                 host = line.split()[0]
-                exists.append(host)
-            # FAILURE with rc=1 typically means user does NOT exist on that host
-            # We don't need to record non-existence.
+                # rc=0 means user exists
+                if "rc=0" in line or "rc=0," in line:
+                    exists.append(host)
+
+        if exists:
+            logging.info(f"Username '{username}' already exists on: {', '.join(exists)}")
+        else:
+            logging.info(f"Username '{username}' not found on any reachable hosts.")
+
+        if unreachable:
+            logging.warning(f"Some hosts unreachable during pre-check: {', '.join(unreachable)}")
+
         return exists, unreachable
+
     except Exception as e:
         logging.error(f"Username existence check failed for {username}: {e}")
-        # On failure to check, assume unknown; don’t block creation
         return [], []
 
 # ==============================
@@ -176,12 +181,11 @@ def index():
         username = email.split("@")[0]
         logging.info(f"Pre-check: verifying username availability for '{username}'")
 
-        # ====== NEW: pre-check for existing username across hosts ======
+        # Check if username exists
         exists_on, unreachable = check_username_exists(username)
         if exists_on:
             msg = f"Username '{username}' already exists on: {', '.join(exists_on)}"
             logging.warning(msg)
-            # Show a friendly message and stop (no changes made)
             return f"""
                 <h2 style='font-family:sans-serif; color:#856404; text-align:center; margin-top:50px;'>
                     ⚠️ Username already exists<br>
@@ -192,11 +196,8 @@ def index():
                     <a href='/' style='color:#007bff; text-decoration:none;'>← Back to form</a>
                 </div>
             """, 409
-        # Note: unreachable hosts don’t block; we continue but will report later.
-        if unreachable:
-            logging.warning(f"Pre-check: some hosts unreachable during existence check: {', '.join(unreachable)}")
 
-        # Proceed with creation
+        # Continue with creation
         password = generate_password()
         logging.info(f"Starting account creation for {fullname} ({email}) as '{username}'")
 
@@ -208,7 +209,7 @@ def index():
                 writer.writerow(["Full Name", "Email", "Username", "Password"])
             writer.writerow([fullname, email, username, password])
 
-        # Run Ansible playbook to create user (playbook is idempotent)
+        # Run Ansible playbook
         extra_vars = (
             f"username='{username}' "
             f"full_name='{fullname}' "
@@ -242,7 +243,7 @@ def index():
             summary = "✅ All hosts completed successfully."
             logging.info("Ansible completed successfully on all hosts.")
 
-        # Always send emails, even with partial host issues
+        # Always send emails even with partial host issues
         send_email_notification(fullname, email, username, password, summary)
         logging.info(f"Account creation finished for {username} ({summary})")
 
@@ -263,6 +264,4 @@ def index():
 # Start Flask app
 # ==============================
 if __name__ == "__main__":
-    # Make sure /var/log/lambda_app.log is writable by this user:
-    #   sudo touch /var/log/lambda_app.log && sudo chown sysadmin:sysadmin /var/log/lambda_app.log && sudo chmod 664 /var/log/lambda_app.log
     app.run(host="0.0.0.0", port=5000, debug=True)
