@@ -5,7 +5,9 @@ import subprocess, random, string, json
 
 app = Flask(__name__)
 
-# Flask-Mail Configuration (uses local Postfix)
+# -------------------------------------------------
+# Flask-Mail configuration (using local Postfix)
+# -------------------------------------------------
 app.config.update(
     MAIL_SERVER='localhost',
     MAIL_PORT=25,
@@ -13,13 +15,13 @@ app.config.update(
     MAIL_USE_SSL=False,
     MAIL_DEFAULT_SENDER='noreply@lab.cs.wit.edu'
 )
-
 mail = Mail(app)
 
-# --- Utilities ---
-
+# -------------------------------------------------
+# Utility functions
+# -------------------------------------------------
 def is_wit_email(raw):
-    """Return True if address ends with @wit.edu"""
+    """Validate that email ends with @wit.edu"""
     name, addr = parseaddr((raw or "").strip())
     if not addr or "@" not in addr:
         return False
@@ -27,26 +29,30 @@ def is_wit_email(raw):
     return bool(local) and domain.casefold() == "wit.edu"
 
 def generate_password(length=10):
+    """Generate a random password"""
     chars = string.ascii_letters + string.digits
     return ''.join(random.choice(chars) for _ in range(length))
 
-# --- Routes ---
-
+# -------------------------------------------------
+# Routes
+# -------------------------------------------------
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        fullname = request.form['fullname']
-        email = request.form['email']
+        fullname = request.form.get('fullname')
+        email = request.form.get('email')
 
-        # Validate email domain
+        # Validate input
+        if not fullname or not email:
+            abort(400, description="Missing required fields.")
         if not is_wit_email(email):
             abort(403, description="Email must end with @wit.edu")
 
-        # Auto-generate username from email prefix
+        # Auto-generate username and password
         username = email.split('@')[0]
         password = generate_password()
 
-        # Send vars securely via stdin instead of cmd args
+        # Build vars for Ansible
         extra = {
             "username": username,
             "full_name": fullname,
@@ -55,13 +61,14 @@ def index():
         }
 
         try:
+            # Run Ansible playbook using /etc/ansible/hosts inventory
             subprocess.run(
                 ["ansible-playbook", "create_user.yml", "--extra-vars=@-"],
                 input=json.dumps(extra).encode(),
                 check=True
             )
 
-            # Email credentials
+            # Send email confirmation
             msg = Message(
                 subject="Your Lambda Lab Account",
                 recipients=[email],
@@ -72,7 +79,11 @@ Your new Lambda Lab account has been created.
 Username: {username}
 Password: {password}
 
-Please change your password upon first login."""
+Please change your password upon first login.
+
+-- 
+WIT School of Computing and Data Science
+Lambda GPU Labs"""
             )
             mail.send(msg)
             return redirect('/')
@@ -81,6 +92,9 @@ Please change your password upon first login."""
 
     return render_template('index.html')
 
-
+# -------------------------------------------------
+# Entry point
+# -------------------------------------------------
 if __name__ == "__main__":
+    # Host 0.0.0.0 lets it listen on all interfaces
     app.run(host='0.0.0.0', port=5000)
