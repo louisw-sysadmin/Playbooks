@@ -6,6 +6,7 @@ import csv
 import os
 import random
 import string
+import re
 
 app = Flask(__name__)
 
@@ -36,6 +37,10 @@ def is_wit_email(raw):
         return False
     local, domain = addr.rsplit("@", 1)
     return bool(local) and domain.casefold() == "wit.edu"
+
+def sanitize_input(value):
+    """Prevent dangerous characters from being injected."""
+    return re.sub(r"[^a-zA-Z0-9@.\-_' ]", "", value)
 
 def send_email_notification(fullname, email, username, password):
     """Send admin and student notifications."""
@@ -81,8 +86,8 @@ WIT School of Computing and Data Science
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
-        fullname = request.form.get("fullname")
-        email = request.form.get("email")
+        fullname = sanitize_input(request.form.get("fullname"))
+        email = sanitize_input(request.form.get("email"))
 
         # Validate WIT email domain
         if not is_wit_email(email):
@@ -99,19 +104,22 @@ def index():
                 writer.writerow(["Full Name", "Email", "Username", "Password"])
             writer.writerow([fullname, email, username, password])
 
-        # Run Ansible playbook
+        # Run Ansible playbook with inline extra vars
+        extra_vars = (
+            f"username='{username}' "
+            f"full_name='{fullname}' "
+            f"email='{email}' "
+            f"password='{password}'"
+        )
+
         try:
             subprocess.run(
                 [
                     "ansible-playbook",
                     "-i", "/etc/ansible/hosts",
                     "create_user.yml",
-                    "--extra-vars=@/dev/stdin"
+                    "--extra-vars", extra_vars
                 ],
-                input=bytes(
-                    f'{{"username":"{username}","full_name":"{fullname}","email":"{email}","password":"{password}"}}',
-                    "utf-8"
-                ),
                 check=True
             )
             print(f"[INFO] User {username} created via Ansible.")
