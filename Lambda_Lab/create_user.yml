@@ -1,21 +1,38 @@
 ---
-- name: Add new user to Linux servers
+- name: Add new user to Lambda servers
   hosts: all
   become: true
+
   vars:
     username: "{{ username }}"
     full_name: "{{ full_name }}"
     email: "{{ email }}"
     password: "{{ password }}"
+    group: students
 
   tasks:
-    - name: Ensure user exists
+    - name: Ensure 'students' group exists
+      ansible.builtin.group:
+        name: "{{ group }}"
+        state: present
+
+    - name: Create or update user account
       ansible.builtin.user:
         name: "{{ username }}"
         shell: /bin/bash
         create_home: yes
         password: "{{ password | password_hash('sha512') }}"
+        groups: "{{ group }}"
+        append: yes
 
     - name: Set full name and email as comment
       ansible.builtin.command:
         cmd: "chfn -f '{{ full_name }} ({{ email }})' {{ username }}"
+
+    - name: Force password change on first login
+      ansible.builtin.command:
+        cmd: "chage -d 0 {{ username }}"
+
+    - name: Confirmation message
+      ansible.builtin.debug:
+        msg: "User {{ username }} created in group '{{ group }}' and must change password at first login."
