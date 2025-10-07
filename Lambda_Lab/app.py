@@ -56,7 +56,7 @@ def index():
 
         try:
             subprocess.run(
-                ["ansible-playbook", "create_user.yml", "--extra-vars", "@-"],
+                ["ansible-playbook", "create_user.yml", "--extra-vars=@-"],
                 input=json.dumps(extra).encode(),
                 check=True
             )
