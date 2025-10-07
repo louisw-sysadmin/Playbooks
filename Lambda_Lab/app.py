@@ -1,110 +1,69 @@
 from flask import Flask, render_template, request, redirect
 from flask_mail import Mail, Message
-import subprocess
-import csv
-import os
-import random
-import string
+import subprocess, random, string, os # string and random are no longer used for password, but kept for simplicity of edit
 
 app = Flask(__name__)
 
-# ==============================
-# Email configuration (Postfix local relay)
-# ==============================
-app.config["MAIL_SERVER"] = "localhost"
-app.config["MAIL_PORT"] = 25
-app.config["MAIL_USE_TLS"] = False
-app.config["MAIL_USE_SSL"] = False
-app.config["MAIL_USERNAME"] = None
-app.config["MAIL_PASSWORD"] = None
-app.config["MAIL_DEFAULT_SENDER"] = "noreply@master.lambda.local"
+# Flask-Mail Configuration (uses local Postfix SMTP)
+app.config.update(
+    MAIL_SERVER='localhost',
+    MAIL_PORT=25,
+    MAIL_USE_TLS=False,
+    MAIL_USE_SSL=False,
+    MAIL_DEFAULT_SENDER='noreply@lab.cs.wit.edu'
+)
 
 mail = Mail(app)
 
-# ==============================
-# Helper: generate a random default password
-# ==============================
-def generate_password(length=10):
-    chars = string.ascii_letters + string.digits
-    return ''.join(random.choice(chars) for _ in range(length))
+# The original password generation function is REMOVED.
 
-# ==============================
-# Helper: send notification emails
-# ==============================
-def send_email_notification(fullname, email, username, password):
-    admin_msg = Message(
-        subject=f"[Lambda GPU Labs] New User Added: {username}",
-        recipients=["louisw@wit.edu"],  # your admin email
-        body=f"""
-A new user has been created on the Linux systems.
-
-Full Name: {fullname}
-Email: {email}
-Username: {username}
-Default Password: {password}
-"""
-    )
-    mail.send(admin_msg)
-
-    student_msg = Message(
-        subject="Your Lambda GPU Lab Account Details",
-        recipients=[email],
-        body=f"""
-Hello {fullname},
-
-Your Lambda GPU Lab account has been created successfully.
-
-Username: {username}
-Temporary Password: {password}
-
-Please log in and change your password on first use.
-
-Thanks,
-WIT School of Computing and Data Science
-"""
-    )
-    mail.send(student_msg)
-
-# ==============================
-# Routes
-# ==============================
-@app.route("/", methods=["GET", "POST"])
+@app.route('/', methods=['GET', 'POST'])
 def index():
-    if request.method == "POST":
-        fullname = request.form["fullname"]
-        email = request.form["email"]
-        username = email.split("@")[0]
-        password = generate_password()
+    if request.method == 'POST':
+        username = request.form['username']
+        fullname = request.form['fullname']
+        email = request.form['email']
+        
+        # --- NEW: Email Validation ---
+        if not email.lower().endswith('@wit.edu'):
+            return "<h3>Error: Only '@wit.edu' emails are allowed.</h3><p><a href='/'>Go Back</a></p>"
 
-        # Save user info to CSV
-        file_exists = os.path.isfile("users.csv")
-        with open("users.csv", "a", newline="") as csvfile:
-            writer = csv.writer(csvfile)
-            if not file_exists:
-                writer.writerow(["Full Name", "Email", "Username", "Password"])
-            writer.writerow([fullname, email, username, password])
+        # --- MODIFIED: Password generation is now handled by Ansible, so no need to generate it here.
+        
+        # --- MODIFIED: The Ansible command now only passes username, fullname, and email ---
+        cmd = [
+            "ansible-playbook", "create_user.yml",
+            "--extra-vars", f"username={username} full_name='{fullname}' email={email}"
+        ]
 
-        # Run Ansible playbook to create the user
         try:
-            subprocess.run([
-                "ansible-playbook",
-                "create_user.yml",
-                "--extra-vars",
-                f"username={username} full_name='{fullname}' email={email} password={password}"
-            ], check=True)
-            print(f"[INFO] User {username} created via Ansible.")
+            # Run the playbook
+            process = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            
+            # --- NEW: Extract the generated password from Ansible's output ---
+            # We assume the playbook will print the generated password in a specific, easily parsable format.
+            # E.g., Ansible output: "PASS_GEN:my_new_password123"
+            password_line = next((line for line in process.stdout.splitlines() if line.startswith('PASS_GEN:')), None)
+            
+            if not password_line:
+                 raise Exception("Ansible playbook did not return the generated password.")
+
+            generated_password = password_line.split(':')[1].strip()
+
+            msg = Message(
+                subject="Your Lambda Lab Account",
+                recipients=[email],
+                body=f"Hello {fullname},\n\nYour new Lambda Lab account has been created.\n\nUsername: {username}\nPassword: {generated_password}\n\nPlease change your password upon first login."
+            )
+            mail.send(msg)
+            
+            return redirect('/')
         except subprocess.CalledProcessError as e:
-            print(f"[ERROR] Ansible failed: {e}")
+            # Include Ansible's error output for better debugging
+            return f"<h3>Ansible failed:</h3><pre>{e}\n\n{e.stderr}</pre>"
+        except Exception as e:
+             return f"<h3>Application Error:</h3><pre>{e}</pre>"
+    return render_template('index.html')
 
-        # Send notification emails
-        send_email_notification(fullname, email, username, password)
-
-        return redirect("/")
-
-    return render_template("index.html")
-
-# ==============================
-# Start Flask app
-# ==============================
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000)

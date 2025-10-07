@@ -1,30 +1,36 @@
 ---
 - name: Add new user to Linux servers
-  hosts: all:!localhost
+  hosts: all
   become: true
   vars:
-    username: "{{ username }}"
-    email: "{{ email }}"
-    full_name: "{{ full_name }}"
-    password: "{{ password | password_hash('sha512') }}"
-    group_name: "students"
-
+    group: students
   tasks:
-    - name: Ensure "students" group exists
+    - name: Ensure 'students' group exists
       ansible.builtin.group:
-        name: "{{ group_name }}"
+        name: "{{ group }}"
         state: present
-
-    - name: Ensure user exists and is in the students group
+        
+    # --- NEW: Generate a secure, plain-text password for the user ---
+    # The 'hash' filter is used on the plain-text password in the next task.
+    - name: Generate random password
+      ansible.builtin.set_fact:
+        # Generate a 15-character password with letters, digits, and special characters
+        plain_password: "{{ lookup('password', '/dev/null chars=ascii_letters,digits,special length=15') }}"
+        
+    # --- NEW: Print the plain-text password for the Flask app to capture ---
+    # This must be run on the control node, which is the default for 'debug'.
+    # The 'PASS_GEN:' tag is used for reliable parsing in app.py.
+    - name: Debug/Return plain password to control node
+      ansible.builtin.debug:
+        msg: "PASS_GEN:{{ plain_password }}"
+        
+    - name: Ensure user exists
       ansible.builtin.user:
         name: "{{ username }}"
+        comment: "{{ full_name }}"
         shell: /bin/bash
         create_home: yes
-        groups: "{{ group_name }}"
+        # --- MODIFIED: Use the generated 'plain_password' for hashing ---
+        password: "{{ plain_password | password_hash('sha512') }}"
+        groups: "{{ group }}"
         append: yes
-        password: "{{ password }}"
-
-    - name: Add full name and email as comment
-      ansible.builtin.command:
-        cmd: "chfn -f '{{ full_name }} ({{ email }})' {{ username }}"
-
