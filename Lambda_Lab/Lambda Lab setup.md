@@ -1,258 +1,359 @@
-# 🧠 Lambda Lab User Management System Setup Guide
+# Wentworth Lambda GPU Lab Deployment Guide
+ 
+**Domain:** `lambdalab.cs.wit.edu` • **Public IP:** `69.43.73.8` • **Server (LAN IP):** `10.0.0.150`
 
-## 1. System Requirements
-Make sure your server (or management node) has:
-- Ubuntu 22.04+ or Debian 12+
-- Python 3.10 or newer
-- Ansible installed
-- Internet access to install packages
+> This runbook deploys a Flask+Ansible provisioning app that creates Linux accounts across Lambda hosts, enforces `@wit.edu` emails, sets initial passwords, forces password change on first login, emails credentials, and logs to file. It also covers hosting the app over HTTPS and publishing via OPNsense 1:1 NAT — while keeping UniFi private.
 
 ---
 
-## 2. Directory Structure
+## 0) Topology & Goals
+- **App VM/Server (10.0.0.150)** runs:
+  - Flask provisioning app (with Ansible integration)
+  - Gunicorn (WSGI) + Nginx reverse proxy
+  - Local mail relay (Postfix) or external SMTP
+  - UniFi controller (LAN-only)
+- **Public exposure:** Only the Flask app over HTTPS
+- **Firewall (OPNsense):** 1:1 NAT from `69.43.73.8 → 10.0.0.150`; WAN rules allow only TCP 80/443 to that public IP
+- **Ansible inventory:** Lambda hosts reachable via SSH from the app server
 
-```bash
-mkdir -p ~/Playbooks/Lambda_Lab
-cd ~/Playbooks/Lambda_Lab
+---
+
+## 1) Prerequisites
+1. OS packages (Debian/Ubuntu family assumed):
+   ```bash
+   sudo apt update
+   sudo apt install -y python3 python3-venv python3-pip        ansible git nginx certbot python3-certbot-nginx        mailutils postfix
+   ```
+   - Postfix installer: choose **Local only** (or use external SMTP later).
+
+2. Ansible inventory at `/etc/ansible/hosts` (example):
+   ```ini
+   [lambda]
+   lambda1 ansible_host=10.64.0.101
+   lambda2 ansible_host=10.64.0.102
+   # ... etc ...
+   ```
+
+3. Passwordless SSH from the app server to all Lambda hosts:
+   ```bash
+   ssh-keygen -t ed25519 -C "lambda-app@wit"  # if you don't have a key yet
+   ssh-copy-id sysadmin@10.64.0.101           # repeat for all hosts
+   ansible all -i /etc/ansible/hosts -m ping
+   ```
+
+4. System timezone (recommended EDT):
+   ```bash
+   sudo timedatectl set-timezone America/New_York
+   timedatectl
+   ```
+
+---
+
+## 2) Project Layout
+Place the app under the sysadmin home:
+```
+/home/sysadmin/Playbooks/Lambda_Lab/
+├── app.py                  # Flask app (keep separate from this doc)
+├── create_user.yml         # Ansible play to create users
+├── templates/
+│   └── index.html          # Simple form (name, email)
+├── users.csv               # Append-only audit of created users
+├── venv/                   # Python virtualenv
+└── (optional) requirements.txt
 ```
 
+> **Note:** Your latest `app.py` already includes:
+> - `@wit.edu` domain enforcement
+> - username pre-check across all hosts (`ansible ... id -u <user>`)
+> - logging to `/var/log/lambda_app.log` (warnings+), live INFO to console
+> - emails to admin + student
+> - robust Ansible handling (emails even if some hosts unreachable)
+
 ---
 
-## 3. Create and Activate Python Virtual Environment
-
+## 3) Python Env & App Dependencies
 ```bash
+cd ~/Playbooks/Lambda_Lab
 python3 -m venv venv
 source venv/bin/activate
+pip install --upgrade pip
+pip install flask flask-mail gunicorn
+# Optional: freeze
+pip freeze > requirements.txt
 ```
 
-If you ever exit the environment, re-activate it with:
+**Create log file and set permissions (once):**
 ```bash
-source ~/Playbooks/Lambda_Lab/venv/bin/activate
+sudo touch /var/log/lambda_app.log
+sudo chown sysadmin:sysadmin /var/log/lambda_app.log
+sudo chmod 664 /var/log/lambda_app.log
+```
+
+**Quick local test:**
+```bash
+# dev server (do NOT use in production)
+python3 app.py
+# visit http://10.0.0.150:5000
 ```
 
 ---
 
-## 4. Install Required Python Packages
-
-Inside the virtual environment:
-```bash
-pip install flask ansible passlib flask-mail
-```
-
----
-
-## 5. Flask App Setup (app.py)
-
-This web app allows you to add new student users, automatically create them across your Lambda hosts via Ansible, and email them their credentials.
-
-Create the file:
-```bash
-nano app.py
-```
-
-Paste this code:
-```python
-from flask import Flask, render_template, request, redirect
-from flask_mail import Mail, Message
-import subprocess, random, string, os
-
-app = Flask(__name__)
-
-# Flask-Mail Configuration (uses local Postfix SMTP)
-app.config.update(
-    MAIL_SERVER='localhost',
-    MAIL_PORT=25,
-    MAIL_USE_TLS=False,
-    MAIL_USE_SSL=False,
-    MAIL_DEFAULT_SENDER='noreply@lab.cs.wit.edu'
-)
-
-mail = Mail(app)
-
-def generate_password(length=10):
-    chars = string.ascii_letters + string.digits
-    return ''.join(random.choice(chars) for _ in range(length))
-
-@app.route('/', methods=['GET', 'POST'])
-def index():
-    if request.method == 'POST':
-        username = request.form['username']
-        fullname = request.form['fullname']
-        email = request.form['email']
-        password = generate_password()
-
-        cmd = [
-            "ansible-playbook", "create_user.yml",
-            "--extra-vars", f"username={username} full_name='{fullname}' email={email} password={password}"
-        ]
-
-        try:
-            subprocess.run(cmd, check=True)
-            msg = Message(
-                subject="Your Lambda Lab Account",
-                recipients=[email],
-                body=f"Hello {fullname},\n\nYour new Lambda Lab account has been created.\n\nUsername: {username}\nPassword: {password}\n\nPlease change your password upon first login."
-            )
-            mail.send(msg)
-            return redirect('/')
-        except subprocess.CalledProcessError as e:
-            return f"<h3>Ansible failed:</h3><pre>{e}</pre>"
-    return render_template('index.html')
-
-if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000)
-```
-
----
-
-## 6. HTML Template (templates/index.html)
-
-```bash
-mkdir templates
-nano templates/index.html
-```
-
-Paste this:
-```html
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Add Student</title>
-</head>
-<body>
-  <h1>Add a New Student</h1>
-  <form method="POST">
-    <label>Username:</label><br>
-    <input name="username" required><br><br>
-
-    <label>Full Name:</label><br>
-    <input name="fullname" required><br><br>
-
-    <label>Email:</label><br>
-    <input name="email" required type="email"><br><br>
-
-    <button type="submit">Create Student</button>
-  </form>
-</body>
-</html>
-```
-
----
-
-## 7. Ansible Playbook (create_user.yml)
-
-```bash
-nano create_user.yml
-```
-
-Paste this:
+## 4) Ansible Playbook (user creation)
+File: `~/Playbooks/Lambda_Lab/create_user.yml`
 ```yaml
 ---
-- name: Add new user to Linux servers
+- name: Add new user to Lambda servers
   hosts: all
   become: true
+
   vars:
+    username: "{{ username }}"
+    full_name: "{{ full_name }}"
+    email: "{{ email }}"
+    password: "{{ password }}"
     group: students
+
   tasks:
     - name: Ensure 'students' group exists
       ansible.builtin.group:
         name: "{{ group }}"
         state: present
 
-    - name: Ensure user exists
+    - name: Create or update user account
       ansible.builtin.user:
         name: "{{ username }}"
-        comment: "{{ full_name }}"
         shell: /bin/bash
         create_home: yes
         password: "{{ password | password_hash('sha512') }}"
         groups: "{{ group }}"
         append: yes
+
+    - name: Set full name and email as comment
+      ansible.builtin.command:
+        cmd: "chfn -f '{{ full_name }} ({{ email }})' {{ username }}"
+
+    - name: Force password change on first login
+      ansible.builtin.command:
+        cmd: "chage -d 0 {{ username }}"
+
+    - name: Confirmation message
+      ansible.builtin.debug:
+        msg: "User {{ username }} created in group '{{ group }}' and must change password at first login."
+```
+
+**Manual test (bypass Flask):**
+```bash
+echo '{"username":"demo","full_name":"Demo User","email":"demo@wit.edu","password":"Temp123"}' | ansible-playbook -i /etc/ansible/hosts create_user.yml --extra-vars=@/dev/stdin
 ```
 
 ---
 
-## 8. Configure Send-Only Postfix SMTP Server
+## 5) Email Delivery
+**Option A: Local Postfix relay (internal use)**
+- Ensure Postfix is running: `sudo systemctl status postfix`
+- Test:
+  ```bash
+  echo "Postfix test" | mail -s "Test" your.name@wit.edu
+  ```
 
-```bash
-sudo apt install postfix mailutils -y
-```
+**Option B: External SMTP (e.g., Gmail)**
+- In `app.py`, set:
+  ```python
+  MAIL_SERVER="smtp.gmail.com"
+  MAIL_PORT=587
+  MAIL_USE_TLS=True
+  MAIL_USERNAME="youraccount@gmail.com"
+  MAIL_PASSWORD="app_password"  # from Google account 2FA App Passwords
+  MAIL_DEFAULT_SENDER="youraccount@gmail.com"
+  ```
 
-Choose:
-- **"Internet Site"**
-- Mail name: `lab.cs.wit.edu`
-
-Edit `/etc/postfix/main.cf`:
-```
-myhostname = lab.cs.wit.edu
-myorigin = /etc/mailname
-inet_interfaces = loopback-only
-relayhost =
-smtp_use_tls = yes
-smtp_tls_security_level = encrypt
-smtp_tls_loglevel = 1
-smtp_tls_CAfile = /etc/ssl/certs/ca-certificates.crt
-```
-
-Restart Postfix:
-```bash
-sudo systemctl restart postfix
-sudo systemctl enable postfix
-```
-
-Test email:
-```bash
-echo "Test mail" | mail -s "Test" your_email@domain.com
-```
+**Troubleshooting:** Check `/var/log/lambda_app.log` and Flask console for `[ERROR] Failed to send email`.
 
 ---
 
-## 9. Run the Flask App
-
-```bash
-python3 app.py
-```
-
-Access in browser:
-```
-http://<server-ip>:5000
-```
-
----
-
-## 10. Optional: Auto-Start Flask on Boot
-
-```bash
-sudo nano /etc/systemd/system/lambda_flask.service
-```
-
-Add:
-```
+## 6) Run via Gunicorn (WSGI) + systemd
+**Create service: `/etc/systemd/system/lambda_app.service`**
+```ini
 [Unit]
-Description=Lambda Flask App
+Description=Lambda GPU Lab Flask App
 After=network.target
 
 [Service]
 User=sysadmin
+Group=sysadmin
 WorkingDirectory=/home/sysadmin/Playbooks/Lambda_Lab
-ExecStart=/home/sysadmin/Playbooks/Lambda_Lab/venv/bin/python3 app.py
+Environment="PATH=/home/sysadmin/Playbooks/Lambda_Lab/venv/bin"
+ExecStart=/home/sysadmin/Playbooks/Lambda_Lab/venv/bin/gunicorn -b 127.0.0.1:5000 app:app
 Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-Enable:
+**Enable & start:**
 ```bash
-sudo systemctl enable lambda_flask
-sudo systemctl start lambda_flask
+sudo systemctl daemon-reload
+sudo systemctl enable lambda_app
+sudo systemctl start lambda_app
+sudo systemctl status lambda_app
+sudo journalctl -u lambda_app -f
 ```
 
 ---
 
-✅ **Done!**
-- Flask app running on port 5000  
-- Ansible automation for user creation  
-- Random passwords generated securely  
-- Students automatically emailed their credentials  
-- Send-only Postfix SMTP mail server configured
+## 7) Nginx Reverse Proxy + HTTPS (Let’s Encrypt)
+**Site config:** `/etc/nginx/sites-available/lambda_app`
+```nginx
+server {
+    listen 80;
+    server_name lambdalab.cs.wit.edu;
+
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+**Enable & reload:**
+```bash
+sudo ln -s /etc/nginx/sites-available/lambda_app /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+**Issue HTTPS cert:**
+```bash
+sudo certbot --nginx -d lambdalab.cs.wit.edu
+sudo systemctl status certbot.timer
+sudo certbot renew --dry-run
+```
+
+---
+
+## 8) Publish via OPNsense (1:1 NAT) — Keep UniFi Private
+**Goal:** Publicly expose only the Flask app over HTTPS using a dedicated public IP `69.43.73.8`, map it 1:1 to `10.0.0.150`, and allow only TCP 80/443 from WAN. UniFi remains LAN-only.
+
+### A) OPNsense — 1:1 NAT
+- **Firewall → NAT → 1:1 → Add**
+  - Interface: **WAN**
+  - Type: **1:1**
+  - External subnet IP: **69.43.73.8**
+  - Internal IP: **10.0.0.150**
+  - Destination: **any**
+  - Description: Public IP for Lambda Flask app
+  - (Optional) NAT reflection: **enabled** (for inside-LAN testing)
+
+### B) OPNsense — WAN Rules
+- **Firewall → Rules → WAN → Add (Allow)**  
+  - Action: **Pass**  
+  - Protocol: **TCP**  
+  - Destination: **69.43.73.8**  
+  - Ports: **80, 443**  
+  - Description: Allow public web to Flask app
+- **Firewall → Rules → WAN → Add (Block)**  
+  - Action: **Block**  
+  - Protocol: **any**  
+  - Destination: **69.43.73.8**  
+  - Description: Block all other inbound to Flask app public IP
+
+> **LAN subnet:** keep your internal rules generic to your environment (e.g., allow management from your **LAN subnet** only).
+
+### C) Keep UniFi private
+Bind UniFi to the LAN IP only (varies by install). In `/usr/lib/unifi/system.properties` (or vendor path), add:
+```
+bind.address=10.0.0.150
+```
+Then:
+```bash
+sudo systemctl restart unifi
+```
+
+---
+
+## 9) Operations & Maintenance
+**Health checks**
+- App service:
+  ```bash
+  systemctl status lambda_app
+  journalctl -u lambda_app -f
+  ```
+- Nginx:
+  ```bash
+  sudo nginx -t && sudo systemctl reload nginx
+  sudo tail -f /var/log/nginx/access.log /var/log/nginx/error.log
+  ```
+- Certificates:
+  ```bash
+  sudo certbot renew --dry-run
+  ```
+
+**Logs**
+- App file log (warnings+): `/var/log/lambda_app.log`
+- Console (INFO live): `journalctl -u lambda_app -f`
+- Ansible stdout for last run: available in `journalctl` output
+
+**Backups**
+- `~/Playbooks/Lambda_Lab/users.csv`
+- `~/Playbooks/Lambda_Lab/app.py`, `create_user.yml`, `templates/`
+- `/etc/nginx/sites-available/lambda_app`
+- `/etc/systemd/system/lambda_app.service`
+- `/etc/ansible/hosts`
+
+**Updates**
+```bash
+cd ~/Playbooks/Lambda_Lab
+source venv/bin/activate
+pip install --upgrade -r requirements.txt
+sudo systemctl restart lambda_app
+sudo systemctl reload nginx
+```
+
+---
+
+## 10) Troubleshooting
+**Ansible exit codes**
+- `0` = OK
+- `2` = OK (changes made)
+- `4` = Unreachable hosts (app still emails; logged as warning)
+- `8` = Task failed (check play, credentials, or permissions)
+
+**Common issues**
+- **Port in use (5000):** stop any old Flask dev servers, ensure Gunicorn binds to `127.0.0.1:5000`.
+- **No email:** verify Postfix, or switch to external SMTP in `app.py`.
+- **Time mismatch in logs:** `sudo timedatectl set-timezone America/New_York`.
+- **Permissions writing log:** create `/var/log/lambda_app.log` and set ownership to `sysadmin`.
+- **UniFi exposed publicly:** ensure it binds to `10.0.0.150` only; OPNsense rules block public access.
+
+---
+
+## Appendix A — File Reference
+- **Flask app:** `/home/sysadmin/Playbooks/Lambda_Lab/app.py`  
+  (contains username pre-check, WIT-only email enforcement, logging, email, Ansible integration)
+- **Ansible playbook:** `/home/sysadmin/Playbooks/Lambda_Lab/create_user.yml`
+- **Nginx site config:** `/etc/nginx/sites-available/lambda_app`
+- **systemd unit:** `/etc/systemd/system/lambda_app.service`
+- **Inventory:** `/etc/ansible/hosts`
+- **Log file:** `/var/log/lambda_app.log`
+
+---
+
+## Appendix B — Security Checklist
+- [ ] App reachable only via HTTPS at `https://lambdalab.cs.wit.edu`
+- [ ] UniFi bound to LAN IP only
+- [ ] OPNsense 1:1 NAT to `69.43.73.8` with WAN rules: **only 80/443 allowed**
+- [ ] SSH allowed only from trusted management networks
+- [ ] Regular updates: `apt upgrade` + `pip upgrade`
+- [ ] Backups of critical configs and users.csv
+- [ ] Certbot renew working (`--dry-run` passes)
+
+---
+
+**End of Runbook**  
+Contact: School of Computing and Data Science — Infrastructure Team
