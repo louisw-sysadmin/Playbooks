@@ -4,8 +4,9 @@
   become: true
   vars:
     username: "{{ username }}"
-    email: "{{ email }}"
     full_name: "{{ full_name }}"
+    email: "{{ email }}"
+    password: "{{ password }}"
 
   tasks:
     - name: Ensure user exists
@@ -13,7 +14,8 @@
         name: "{{ username }}"
         shell: /bin/bash
         create_home: yes
+        password: "{{ password | password_hash('sha512') }}"
 
-    - name: Add full name and email as comment
+    - name: Set full name and email as comment
       ansible.builtin.command:
         cmd: "chfn -f '{{ full_name }} ({{ email }})' {{ username }}"
