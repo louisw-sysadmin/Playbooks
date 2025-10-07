@@ -18,18 +18,34 @@ app = Flask(__name__)
 LOG_FILE = "/var/log/lambda_app.log"
 os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
 
-logging.basicConfig(
-    filename=LOG_FILE,
-    level=logging.WARNING,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
-)
+# --- FILE HANDLER (only warnings and errors) ---
+file_handler = logging.FileHandler(LOG_FILE)
+file_handler.setLevel(logging.WARNING)
+file_handler.setFormatter(logging.Formatter(
+    "%(asctime)s [%(levelname)s] %(message)s",
+    "%Y-%m-%d %H:%M:%S"
+))
+
+# --- CONSOLE HANDLER (show all INFO live) ---
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+console_handler.setFormatter(logging.Formatter(
+    "[%(levelname)s] %(message)s"
+))
+
+# --- ROOT LOGGER ---
+logging.getLogger().handlers = [file_handler, console_handler]
+logging.getLogger().setLevel(logging.DEBUG)
+
+# --- Quiet Flask’s own access logs in the file ---
+flask_log = logging.getLogger('werkzeug')
+flask_log.setLevel(logging.ERROR)
 
 # ==============================
 # Email configuration
 # ==============================
 app.config.update(
-    MAIL_SERVER="localhost",
+    MAIL_SERVER="localhost",          # Use Postfix local relay
     MAIL_PORT=25,
     MAIL_USE_TLS=False,
     MAIL_USE_SSL=False,
@@ -41,10 +57,12 @@ mail = Mail(app)
 # Helper functions
 # ==============================
 def generate_password(length=10):
+    """Generate a random password."""
     chars = string.ascii_letters + string.digits
     return ''.join(random.choice(chars) for _ in range(length))
 
 def is_wit_email(raw):
+    """Validate @wit.edu email."""
     name, addr = parseaddr((raw or "").strip())
     if not addr or "@" not in addr:
         return False
@@ -52,6 +70,7 @@ def is_wit_email(raw):
     return bool(local) and domain.casefold() == "wit.edu"
 
 def sanitize_input(value):
+    """Prevent dangerous characters."""
     return re.sub(r"[^a-zA-Z0-9@.\-_' ]", "", value)
 
 def send_email_notification(fullname, email, username, password, ansible_summary):
@@ -59,7 +78,7 @@ def send_email_notification(fullname, email, username, password, ansible_summary
     try:
         admin_msg = Message(
             subject=f"[Lambda GPU Labs] New User Added: {username}",
-            recipients=["louisw@wit.edu"],  # Change admin email if needed
+            recipients=["louisw@wit.edu"],  # Admin email
             body=f"""
 A new user has been created via the Lambda GPU Lab system.
 
@@ -119,7 +138,6 @@ def index():
         username = email.split("@")[0]
         password = generate_password()
 
-        # Log start
         logging.info(f"Starting account creation for {fullname} ({email})")
 
         # Save to CSV
@@ -150,7 +168,7 @@ def index():
                 text=True
             )
 
-            # Collect summary
+            # Parse Ansible results
             ansible_output = result.stdout + "\n" + result.stderr
             failed_hosts = []
             for line in ansible_output.splitlines():
@@ -170,13 +188,10 @@ def index():
             logging.error(summary)
             print(summary)
 
-        # Always send emails (even on failure)
+        # Always send emails even if some hosts failed
         send_email_notification(fullname, email, username, password, summary)
-
-        # Log final result
         logging.info(f"Account creation finished for {username} ({summary})")
 
-        # Show success or partial success in browser
         return f"""
         <h2 style='font-family:sans-serif; color:#155724; text-align:center; margin-top:50px;'>
             ✅ Account creation initiated for {fullname}<br>
@@ -191,7 +206,7 @@ def index():
     return render_template("index.html")
 
 # ==============================
-# Start Flask
+# Start Flask app
 # ==============================
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
