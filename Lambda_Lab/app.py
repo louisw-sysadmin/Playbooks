@@ -17,7 +17,7 @@ app = Flask(__name__)
 LOG_FILE = "/var/log/lambda_app.log"
 os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
 
-# --- File: warnings and errors only ---
+# File handler: warnings and errors only
 file_handler = logging.FileHandler(LOG_FILE)
 file_handler.setLevel(logging.WARNING)
 file_handler.setFormatter(logging.Formatter(
@@ -25,12 +25,10 @@ file_handler.setFormatter(logging.Formatter(
     "%Y-%m-%d %H:%M:%S"
 ))
 
-# --- Console: show all INFO+ ---
+# Console handler: show everything (info included)
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.INFO)
-console_handler.setFormatter(logging.Formatter(
-    "[%(levelname)s] %(message)s"
-))
+console_handler.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
 
 logging.getLogger().handlers = [file_handler, console_handler]
 logging.getLogger().setLevel(logging.DEBUG)
@@ -72,7 +70,7 @@ def send_email_notification(fullname, email, username, password, ansible_summary
     try:
         admin_msg = Message(
             subject=f"[Lambda GPU Labs] New User Added: {username}",
-            recipients=["louisw@wit.edu"],  # admin
+            recipients=["louisw@wit.edu"],
             body=f"""
 A new user has been created via the Lambda GPU Lab system.
 
@@ -85,7 +83,7 @@ Ansible Summary:
 {ansible_summary}
 
 ---
-This email was sent automatically by the Flask provisioning app.
+This email was sent automatically by the Lambda Flask provisioning app.
 """
         )
         mail.send(admin_msg)
@@ -114,50 +112,56 @@ WIT School of Computing and Data Science
         logging.error(f"Failed to send email for {username}: {e}")
         print(f"[ERROR] Failed to send email: {e}")
 
+# ==============================
+# Check if user exists
+# ==============================
 def check_username_exists(username):
     """
     Ask Ansible across all hosts if the user exists.
     Returns (exists_on_hosts, unreachable_hosts).
     """
     try:
-        res = subprocess.run(
+        result = subprocess.run(
             [
                 "ansible",
-                "-i", "/etc/ansible/hosts",
                 "all",
-                "-m", "command",
-                "-a", f"id -u {username}"
+                "-i", "/etc/ansible/hosts",
+                "-m", "shell",
+                "-a", f"id -u {username}",
+                "--one-line"
             ],
             capture_output=True,
             text=True
         )
-        stdout = res.stdout or ""
-        stderr = res.stderr or ""
-        exists = []
+
+        exists_on = []
         unreachable = []
 
-        for line in (stdout + "\n" + stderr).splitlines():
+        # Combine stdout and stderr for full capture
+        for line in (result.stdout + result.stderr).splitlines():
             line = line.strip()
             if not line:
                 continue
+
             if "UNREACHABLE!" in line:
                 host = line.split()[0]
                 unreachable.append(host)
-            elif "| SUCCESS" in line:
+            elif "rc=0" in line:
                 host = line.split()[0]
-                # rc=0 means user exists
-                if "rc=0" in line or "rc=0," in line:
-                    exists.append(host)
+                exists_on.append(host)
 
-        if exists:
-            logging.info(f"Username '{username}' already exists on: {', '.join(exists)}")
+        # Logging results
+        if exists_on and not unreachable:
+            logging.info(f"Username '{username}' already exists on: {', '.join(exists_on)}")
+        elif exists_on and unreachable:
+            logging.info(f"Username '{username}' exists on: {', '.join(exists_on)}")
+            logging.warning(f"Some hosts unreachable during pre-check: {', '.join(unreachable)}")
+        elif not exists_on and unreachable:
+            logging.info(f"Username '{username}' not found, but some hosts unreachable: {', '.join(unreachable)}")
         else:
             logging.info(f"Username '{username}' not found on any reachable hosts.")
 
-        if unreachable:
-            logging.warning(f"Some hosts unreachable during pre-check: {', '.join(unreachable)}")
-
-        return exists, unreachable
+        return exists_on, unreachable
 
     except Exception as e:
         logging.error(f"Username existence check failed for {username}: {e}")
@@ -172,7 +176,7 @@ def index():
         fullname = sanitize_input(request.form.get("fullname"))
         email = sanitize_input(request.form.get("email"))
 
-        # Enforce WIT email
+        # Require WIT email
         if not is_wit_email(email):
             msg = f"Rejected non-WIT email attempt: {email}"
             logging.warning(msg)
@@ -181,7 +185,6 @@ def index():
         username = email.split("@")[0]
         logging.info(f"Pre-check: verifying username availability for '{username}'")
 
-        # Check if username exists
         exists_on, unreachable = check_username_exists(username)
         if exists_on:
             msg = f"Username '{username}' already exists on: {', '.join(exists_on)}"
@@ -197,7 +200,6 @@ def index():
                 </div>
             """, 409
 
-        # Continue with creation
         password = generate_password()
         logging.info(f"Starting account creation for {fullname} ({email}) as '{username}'")
 
@@ -228,7 +230,6 @@ def index():
             text=True
         )
 
-        # Parse Ansible results
         ansible_output = result.stdout + "\n" + result.stderr
         failed_hosts = []
         for line in ansible_output.splitlines():
@@ -243,7 +244,7 @@ def index():
             summary = "✅ All hosts completed successfully."
             logging.info("Ansible completed successfully on all hosts.")
 
-        # Always send emails even with partial host issues
+        # Always send email even if partial failure
         send_email_notification(fullname, email, username, password, summary)
         logging.info(f"Account creation finished for {username} ({summary})")
 
