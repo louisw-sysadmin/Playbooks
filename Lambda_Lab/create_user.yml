@@ -2,35 +2,31 @@
 - name: Add new user to Linux servers
   hosts: all
   become: true
+
   vars:
     group: students
+
   tasks:
     - name: Ensure 'students' group exists
       ansible.builtin.group:
         name: "{{ group }}"
         state: present
-        
-    # --- NEW: Generate a secure, plain-text password for the user ---
-    # The 'hash' filter is used on the plain-text password in the next task.
-    - name: Generate random password
-      ansible.builtin.set_fact:
-        # Generate a 15-character password with letters, digits, and special characters
-        plain_password: "{{ lookup('password', '/dev/null chars=ascii_letters,digits,special length=15') }}"
-        
-    # --- NEW: Print the plain-text password for the Flask app to capture ---
-    # This must be run on the control node, which is the default for 'debug'.
-    # The 'PASS_GEN:' tag is used for reliable parsing in app.py.
-    - name: Debug/Return plain password to control node
-      ansible.builtin.debug:
-        msg: "PASS_GEN:{{ plain_password }}"
-        
-    - name: Ensure user exists
+
+    - name: Ensure user exists and set password
       ansible.builtin.user:
         name: "{{ username }}"
         comment: "{{ full_name }}"
         shell: /bin/bash
         create_home: yes
-        # --- MODIFIED: Use the generated 'plain_password' for hashing ---
-        password: "{{ plain_password | password_hash('sha512') }}"
+        password: "{{ password | password_hash('sha512') }}"
         groups: "{{ group }}"
         append: yes
+
+    - name: Force password change on first login
+      ansible.builtin.command:
+        cmd: chage -d 0 {{ username }}
+      become: true
+
+    - name: Debug confirmation message
+      ansible.builtin.debug:
+        msg: "User {{ username }} created and must change password at first login."
