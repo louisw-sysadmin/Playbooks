@@ -11,10 +11,10 @@ import re
 app = Flask(__name__)
 
 # ==============================
-# Email configuration (Postfix local relay)
+# Email configuration
 # ==============================
 app.config.update(
-    MAIL_SERVER="localhost",
+    MAIL_SERVER="localhost",          # Use Postfix local relay
     MAIL_PORT=25,
     MAIL_USE_TLS=False,
     MAIL_USE_SSL=False,
@@ -23,7 +23,7 @@ app.config.update(
 mail = Mail(app)
 
 # ==============================
-# Helper functions
+# Helpers
 # ==============================
 def generate_password(length=10):
     """Generate a random password."""
@@ -31,7 +31,7 @@ def generate_password(length=10):
     return ''.join(random.choice(chars) for _ in range(length))
 
 def is_wit_email(raw):
-    """Validate that email ends with @wit.edu."""
+    """Validate @wit.edu email."""
     name, addr = parseaddr((raw or "").strip())
     if not addr or "@" not in addr:
         return False
@@ -39,32 +39,38 @@ def is_wit_email(raw):
     return bool(local) and domain.casefold() == "wit.edu"
 
 def sanitize_input(value):
-    """Prevent dangerous characters from being injected."""
+    """Prevent dangerous characters."""
     return re.sub(r"[^a-zA-Z0-9@.\-_' ]", "", value)
 
-def send_email_notification(fullname, email, username, password):
-    """Send admin and student notifications."""
-
-    # Email to admin
-    admin_msg = Message(
-        subject=f"[Lambda GPU Labs] New User Added: {username}",
-        recipients=["louisw@wit.edu"],  # Change to your admin email
-        body=f"""
-A new user has been created on the Lambda GPU systems.
+def send_email_notification(fullname, email, username, password, ansible_summary):
+    """Send emails to admin and student with Ansible results."""
+    try:
+        # Admin email
+        admin_msg = Message(
+            subject=f"[Lambda GPU Labs] New User Added: {username}",
+            recipients=["louisw@wit.edu"],  # Change to your admin email
+            body=f"""
+A new user has been created via the Lambda GPU Lab system.
 
 Full Name: {fullname}
 Email: {email}
 Username: {username}
 Temporary Password: {password}
-"""
-    )
-    mail.send(admin_msg)
 
-    # Email to student
-    student_msg = Message(
-        subject="Your Lambda GPU Lab Account Details",
-        recipients=[email],
-        body=f"""
+Ansible Summary:
+{ansible_summary}
+
+---
+This email was sent automatically by the Flask provisioning app.
+"""
+        )
+        mail.send(admin_msg)
+
+        # Student email
+        student_msg = Message(
+            subject="Your Lambda GPU Lab Account Details",
+            recipients=[email],
+            body=f"""
 Hello {fullname},
 
 Your Lambda GPU Lab account has been created successfully.
@@ -72,13 +78,18 @@ Your Lambda GPU Lab account has been created successfully.
 Username: {username}
 Temporary Password: {password}
 
-Please log in and change your password at first login.
+Please log in and change your password on first use.
 
 Thanks,
 WIT School of Computing and Data Science
 """
-    )
-    mail.send(student_msg)
+        )
+        mail.send(student_msg)
+
+        print(f"[INFO] Emails sent successfully to {email} and admin.")
+
+    except Exception as e:
+        print(f"[ERROR] Failed to send email: {e}")
 
 # ==============================
 # Routes
@@ -89,14 +100,14 @@ def index():
         fullname = sanitize_input(request.form.get("fullname"))
         email = sanitize_input(request.form.get("email"))
 
-        # Validate WIT email domain
+        # Enforce WIT email
         if not is_wit_email(email):
             return "Only @wit.edu email addresses are allowed.", 403
 
         username = email.split("@")[0]
         password = generate_password()
 
-        # Save to CSV for recordkeeping
+        # Save user to CSV
         file_exists = os.path.isfile("users.csv")
         with open("users.csv", "a", newline="") as csvfile:
             writer = csv.writer(csvfile)
@@ -104,7 +115,7 @@ def index():
                 writer.writerow(["Full Name", "Email", "Username", "Password"])
             writer.writerow([fullname, email, username, password])
 
-        # Run Ansible playbook with inline extra vars
+        # Run Ansible playbook
         extra_vars = (
             f"username='{username}' "
             f"full_name='{fullname}' "
@@ -112,43 +123,53 @@ def index():
             f"password='{password}'"
         )
 
-        try:
-            subprocess.run(
-                [
-                    "ansible-playbook",
-                    "-i", "/etc/ansible/hosts",
-                    "create_user.yml",
-                    "--extra-vars", extra_vars
-                ],
-                check=True
-            )
-            print(f"[INFO] User {username} created via Ansible.")
-        except subprocess.CalledProcessError as e:
-            print(f"[ERROR] Ansible failed: {e}")
-            return f"<h3>Ansible failed:</h3><pre>{e}</pre>", 500
+        print(f"[INFO] Running Ansible for {username}...")
 
-        # Send notification emails
-        send_email_notification(fullname, email, username, password)
+        result = subprocess.run(
+            [
+                "ansible-playbook",
+                "-i", "/etc/ansible/hosts",
+                "create_user.yml",
+                "--extra-vars", extra_vars
+            ],
+            capture_output=True,
+            text=True
+        )
 
-        # Redirect back to form with confirmation
-        return redirect("/success")
+        # Build readable Ansible summary
+        ansible_output = result.stdout + "\n" + result.stderr
+        failed_hosts = []
+        for line in ansible_output.splitlines():
+            if "UNREACHABLE!" in line or "FAILED!" in line:
+                host = line.split()[0]
+                failed_hosts.append(host)
+
+        if failed_hosts:
+            summary = f"⚠️ Some hosts failed or unreachable: {', '.join(failed_hosts)}"
+        else:
+            summary = "✅ All hosts completed successfully."
+
+        print("[SUMMARY]:", summary)
+
+        # Always send emails even if some nodes failed
+        send_email_notification(fullname, email, username, password, summary)
+
+        # Show success page to user
+        return f"""
+        <h2 style='font-family:sans-serif; color:#155724; text-align:center; margin-top:50px;'>
+            ✅ Account created for {fullname}<br>
+            <small>{summary}</small><br><br>
+            Please check your WIT email for credentials.
+        </h2>
+        <div style='text-align:center; margin-top:20px;'>
+            <a href='/' style='color:#007bff; text-decoration:none;'>← Back to form</a>
+        </div>
+        """
 
     return render_template("index.html")
 
-@app.route("/success")
-def success():
-    return """
-    <h2 style='font-family:sans-serif; color:#155724; text-align:center; margin-top:50px;'>
-        ✅ Account created successfully!<br>
-        Please check your WIT email for login details.
-    </h2>
-    <div style='text-align:center; margin-top:20px;'>
-        <a href='/' style='color:#007bff; text-decoration:none;'>← Back to form</a>
-    </div>
-    """
-
 # ==============================
-# Start Flask app
+# Start Flask
 # ==============================
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
