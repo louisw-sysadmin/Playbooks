@@ -7,14 +7,29 @@ import os
 import random
 import string
 import re
+import logging
+from datetime import datetime
 
 app = Flask(__name__)
+
+# ==============================
+# Logging configuration
+# ==============================
+LOG_FILE = "/var/log/lambda_app.log"
+os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
+
+logging.basicConfig(
+    filename=LOG_FILE,
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
 
 # ==============================
 # Email configuration
 # ==============================
 app.config.update(
-    MAIL_SERVER="localhost",          # Use Postfix local relay
+    MAIL_SERVER="localhost",
     MAIL_PORT=25,
     MAIL_USE_TLS=False,
     MAIL_USE_SSL=False,
@@ -23,15 +38,13 @@ app.config.update(
 mail = Mail(app)
 
 # ==============================
-# Helpers
+# Helper functions
 # ==============================
 def generate_password(length=10):
-    """Generate a random password."""
     chars = string.ascii_letters + string.digits
     return ''.join(random.choice(chars) for _ in range(length))
 
 def is_wit_email(raw):
-    """Validate @wit.edu email."""
     name, addr = parseaddr((raw or "").strip())
     if not addr or "@" not in addr:
         return False
@@ -39,16 +52,14 @@ def is_wit_email(raw):
     return bool(local) and domain.casefold() == "wit.edu"
 
 def sanitize_input(value):
-    """Prevent dangerous characters."""
     return re.sub(r"[^a-zA-Z0-9@.\-_' ]", "", value)
 
 def send_email_notification(fullname, email, username, password, ansible_summary):
-    """Send emails to admin and student with Ansible results."""
+    """Send emails to admin and student; log success or errors."""
     try:
-        # Admin email
         admin_msg = Message(
             subject=f"[Lambda GPU Labs] New User Added: {username}",
-            recipients=["louisw@wit.edu"],  # Change to your admin email
+            recipients=["louisw@wit.edu"],  # Change admin email if needed
             body=f"""
 A new user has been created via the Lambda GPU Lab system.
 
@@ -66,7 +77,6 @@ This email was sent automatically by the Flask provisioning app.
         )
         mail.send(admin_msg)
 
-        # Student email
         student_msg = Message(
             subject="Your Lambda GPU Lab Account Details",
             recipients=[email],
@@ -86,9 +96,9 @@ WIT School of Computing and Data Science
         )
         mail.send(student_msg)
 
-        print(f"[INFO] Emails sent successfully to {email} and admin.")
-
+        logging.info(f"Emails sent successfully to {email} and admin for {username}")
     except Exception as e:
+        logging.error(f"Failed to send email for {username}: {e}")
         print(f"[ERROR] Failed to send email: {e}")
 
 # ==============================
@@ -102,12 +112,17 @@ def index():
 
         # Enforce WIT email
         if not is_wit_email(email):
+            msg = f"Rejected non-WIT email attempt: {email}"
+            logging.warning(msg)
             return "Only @wit.edu email addresses are allowed.", 403
 
         username = email.split("@")[0]
         password = generate_password()
 
-        # Save user to CSV
+        # Log start
+        logging.info(f"Starting account creation for {fullname} ({email})")
+
+        # Save to CSV
         file_exists = os.path.isfile("users.csv")
         with open("users.csv", "a", newline="") as csvfile:
             writer = csv.writer(csvfile)
@@ -123,43 +138,50 @@ def index():
             f"password='{password}'"
         )
 
-        print(f"[INFO] Running Ansible for {username}...")
+        try:
+            result = subprocess.run(
+                [
+                    "ansible-playbook",
+                    "-i", "/etc/ansible/hosts",
+                    "create_user.yml",
+                    "--extra-vars", extra_vars
+                ],
+                capture_output=True,
+                text=True
+            )
 
-        result = subprocess.run(
-            [
-                "ansible-playbook",
-                "-i", "/etc/ansible/hosts",
-                "create_user.yml",
-                "--extra-vars", extra_vars
-            ],
-            capture_output=True,
-            text=True
-        )
+            # Collect summary
+            ansible_output = result.stdout + "\n" + result.stderr
+            failed_hosts = []
+            for line in ansible_output.splitlines():
+                if "UNREACHABLE!" in line or "FAILED!" in line:
+                    host = line.split()[0]
+                    failed_hosts.append(host)
 
-        # Build readable Ansible summary
-        ansible_output = result.stdout + "\n" + result.stderr
-        failed_hosts = []
-        for line in ansible_output.splitlines():
-            if "UNREACHABLE!" in line or "FAILED!" in line:
-                host = line.split()[0]
-                failed_hosts.append(host)
+            if failed_hosts:
+                summary = f"⚠️ Some hosts failed or unreachable: {', '.join(failed_hosts)}"
+                logging.warning(f"Ansible completed with unreachable hosts: {failed_hosts}")
+            else:
+                summary = "✅ All hosts completed successfully."
+                logging.info("Ansible completed successfully on all hosts.")
 
-        if failed_hosts:
-            summary = f"⚠️ Some hosts failed or unreachable: {', '.join(failed_hosts)}"
-        else:
-            summary = "✅ All hosts completed successfully."
+        except Exception as e:
+            summary = f"❌ Ansible execution error: {e}"
+            logging.error(summary)
+            print(summary)
 
-        print("[SUMMARY]:", summary)
-
-        # Always send emails even if some nodes failed
+        # Always send emails (even on failure)
         send_email_notification(fullname, email, username, password, summary)
 
-        # Show success page to user
+        # Log final result
+        logging.info(f"Account creation finished for {username} ({summary})")
+
+        # Show success or partial success in browser
         return f"""
         <h2 style='font-family:sans-serif; color:#155724; text-align:center; margin-top:50px;'>
-            ✅ Account created for {fullname}<br>
+            ✅ Account creation initiated for {fullname}<br>
             <small>{summary}</small><br><br>
-            Please check your WIT email for credentials.
+            Please check your WIT email for login details.
         </h2>
         <div style='text-align:center; margin-top:20px;'>
             <a href='/' style='color:#007bff; text-decoration:none;'>← Back to form</a>
