@@ -25,7 +25,7 @@ file_handler.setFormatter(logging.Formatter(
     "%Y-%m-%d %H:%M:%S"
 ))
 
-# Console handler: show everything (info included)
+# Console handler: show everything
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.INFO)
 console_handler.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
@@ -116,10 +116,6 @@ WIT School of Computing and Data Science
 # Check if user exists
 # ==============================
 def check_username_exists(username):
-    """
-    Ask Ansible across all hosts if the user exists.
-    Returns (exists_on_hosts, unreachable_hosts).
-    """
     try:
         result = subprocess.run(
             [
@@ -137,12 +133,10 @@ def check_username_exists(username):
         exists_on = []
         unreachable = []
 
-        # Combine stdout and stderr for full capture
         for line in (result.stdout + result.stderr).splitlines():
             line = line.strip()
             if not line:
                 continue
-
             if "UNREACHABLE!" in line:
                 host = line.split()[0]
                 unreachable.append(host)
@@ -150,7 +144,6 @@ def check_username_exists(username):
                 host = line.split()[0]
                 exists_on.append(host)
 
-        # Logging results
         if exists_on and not unreachable:
             logging.info(f"Username '{username}' already exists on: {', '.join(exists_on)}")
         elif exists_on and unreachable:
@@ -176,7 +169,6 @@ def index():
         fullname = sanitize_input(request.form.get("fullname"))
         email = sanitize_input(request.form.get("email"))
 
-        # Require WIT email
         if not is_wit_email(email):
             msg = f"Rejected non-WIT email attempt: {email}"
             logging.warning(msg)
@@ -203,7 +195,7 @@ def index():
         password = generate_password()
         logging.info(f"Starting account creation for {fullname} ({email}) as '{username}'")
 
-        # Save to CSV
+        # Save user to CSV
         file_exists = os.path.isfile("users.csv")
         with open("users.csv", "a", newline="") as csvfile:
             writer = csv.writer(csvfile)
@@ -232,19 +224,23 @@ def index():
 
         ansible_output = result.stdout + "\n" + result.stderr
         failed_hosts = []
-        for line in ansible_output.splitlines():
-            if "UNREACHABLE!" in line or "FAILED!" in line:
-                host = line.split()[0]
-                failed_hosts.append(host)
 
-        if failed_hosts:
-            summary = f"⚠️ Some hosts failed or unreachable: {', '.join(failed_hosts)}"
-            logging.warning(f"Ansible completed with issues: {failed_hosts}")
+        # Smarter detection: only mark failures that are real
+        for line in ansible_output.splitlines():
+            if re.search(r"(UNREACHABLE!|FAILED!)", line, re.IGNORECASE) and not re.search(r"failed=0", line):
+                try:
+                    host = line.split()[0].strip()
+                    failed_hosts.append(host)
+                except Exception:
+                    continue
+
+        if result.returncode != 0 or failed_hosts:
+            summary = f"⚠️ Some hosts failed or were unreachable: {', '.join(failed_hosts) if failed_hosts else 'See logs for details.'}"
+            logging.warning(f"Ansible returned non-zero exit code ({result.returncode}) or failed hosts: {failed_hosts}")
         else:
             summary = "✅ All hosts completed successfully."
             logging.info("Ansible completed successfully on all hosts.")
 
-        # Always send email even if partial failure
         send_email_notification(fullname, email, username, password, summary)
         logging.info(f"Account creation finished for {username} ({summary})")
 
