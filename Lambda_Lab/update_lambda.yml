@@ -1,0 +1,17 @@
+---
+
+- name: Update all Lambda Machines
+  hosts: lambda
+  become: yes  # This is necessary for privilege escalation (e.g., sudo)
+  tasks:
+    - name: update all packages to the latest version
+      ansible.builtin.apt:
+        upgrade: dist
+        update_cache: yes
+    - name: Print a success message for update
+      ansible.builtin.debug:
+        msg: "All packages have been updated on {{ inventory_hostname }}"
+    - name: Remove unnecessary packages
+      ansible.builtin.apt:
+        autoremove: yes
+        autoclean: yes
