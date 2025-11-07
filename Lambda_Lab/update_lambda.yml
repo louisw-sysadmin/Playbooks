@@ -8,6 +8,7 @@
       ansible.builtin.apt:
         upgrade: dist
         update_cache: yes
+        allow_downgrade: yes
     - name: Print a success message for update
       ansible.builtin.debug:
         msg: "All packages have been updated on {{ inventory_hostname }}"
