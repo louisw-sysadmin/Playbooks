@@ -1,0 +1,93 @@
+---
+- name: Install NVIDIA Driver, CUDA 13.0, and TensorFlow GPU
+  hosts: all
+  become: yes
+  vars:
+    cuda_version: "13-0"
+    venv_dir: "/opt/tf_gpu_env"
+
+  tasks:
+    - name: Ensure apt cache is up to date
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install base dependencies
+      apt:
+        name:
+          - build-essential
+          - dkms
+          - linux-headers-{{ ansible_kernel }}
+          - python3-venv
+          - python3-pip
+          - wget
+          - gnupg
+        state: present
+
+    - name: Add NVIDIA CUDA 13.0 repository
+      ansible.builtin.shell: |
+        wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb -O /tmp/cuda-keyring.deb
+        dpkg -i /tmp/cuda-keyring.deb
+        apt-get update -y
+      args:
+        creates: /usr/share/keyrings/cuda-archive-keyring.gpg
+
+    - name: Install NVIDIA driver (proprietary flavor)
+      apt:
+        name: cuda-drivers
+        state: present
+
+    # Uncomment below if you prefer the open-source driver instead:
+    # - name: Install NVIDIA driver (open flavor)
+    #   apt:
+    #     name: nvidia-open
+    #     state: present
+
+    - name: Install CUDA toolkit 13.0
+      apt:
+        name: "cuda-toolkit-{{ cuda_version }}"
+        state: present
+
+    - name: Add CUDA to PATH
+      lineinfile:
+        path: /etc/profile.d/cuda.sh
+        line: 'export PATH=/usr/local/cuda/bin:$PATH'
+        create: yes
+        mode: '0644'
+
+    - name: Create Python venv for TensorFlow
+      command: python3 -m venv {{ venv_dir }}
+      args:
+        creates: "{{ venv_dir }}/bin/activate"
+
+    - name: Upgrade pip in venv
+      pip:
+        name: pip
+        state: latest
+        virtualenv: "{{ venv_dir }}"
+        virtualenv_command: python3 -m venv
+
+    - name: Install TensorFlow with GPU support
+      pip:
+        name: "tensorflow[and-cuda]"
+        state: latest
+        virtualenv: "{{ venv_dir }}"
+        virtualenv_command: python3 -m venv
+
+    - name: Verify NVIDIA driver
+      shell: nvidia-smi
+      register: nvidia_smi
+      changed_when: false
+
+    - debug:
+        msg: "{{ nvidia_smi.stdout }}"
+
+    - name: Verify TensorFlow GPU detection
+      shell: |
+        source {{ venv_dir }}/bin/activate
+        python -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
+      register: tf_gpu
+      changed_when: false
+
+    - debug:
+        msg: "{{ tf_gpu.stdout }}"
