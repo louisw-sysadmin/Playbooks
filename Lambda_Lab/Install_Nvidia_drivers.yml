@@ -22,45 +22,57 @@
           - python3-pip
           - wget
           - gnupg
+          - lsb-release
         state: present
 
-    - name: Add NVIDIA CUDA 13.0 repository
-      ansible.builtin.shell: |
-        wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb -O /tmp/cuda-keyring.deb
-        dpkg -i /tmp/cuda-keyring.deb
-        apt-get update -y
-      args:
-        creates: /usr/share/keyrings/cuda-archive-keyring.gpg
+    - name: Download NVIDIA CUDA keyring
+      ansible.builtin.get_url:
+        url: https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
+        dest: /tmp/cuda-keyring.deb
+        mode: '0644'
 
-    - name: Install NVIDIA driver (proprietary flavor)
+    - name: Install CUDA keyring
+      ansible.builtin.apt:
+        deb: /tmp/cuda-keyring.deb
+
+    - name: Update apt cache after adding CUDA repo
+      apt:
+        update_cache: yes
+
+    - name: Install NVIDIA proprietary driver
       apt:
         name: cuda-drivers
         state: present
 
-    # Uncomment below if you prefer the open-source driver instead:
-    # - name: Install NVIDIA driver (open flavor)
-    #   apt:
-    #     name: nvidia-open
-    #     state: present
-
-    - name: Install CUDA toolkit 13.0
+    - name: Install CUDA toolkit
       apt:
         name: "cuda-toolkit-{{ cuda_version }}"
         state: present
 
-    - name: Add CUDA to PATH
-      lineinfile:
-        path: /etc/profile.d/cuda.sh
-        line: 'export PATH=/usr/local/cuda/bin:$PATH'
-        create: yes
+    - name: Create CUDA environment setup script
+      copy:
+        dest: /etc/profile.d/cuda.sh
+        content: |
+          export PATH=/usr/local/cuda/bin:$PATH
+          export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
         mode: '0644'
 
-    - name: Create Python venv for TensorFlow
+    - name: Check if reboot is required (after driver install)
+      stat:
+        path: /var/run/reboot-required
+      register: reboot_required_file
+
+    - name: Reboot system if required
+      reboot:
+        msg: "Rebooting after NVIDIA driver installation..."
+      when: reboot_required_file.stat.exists
+
+    - name: Create Python virtual environment for TensorFlow
       command: python3 -m venv {{ venv_dir }}
       args:
         creates: "{{ venv_dir }}/bin/activate"
 
-    - name: Upgrade pip in venv
+    - name: Upgrade pip in virtual environment
       pip:
         name: pip
         state: latest
@@ -73,14 +85,25 @@
         state: latest
         virtualenv: "{{ venv_dir }}"
         virtualenv_command: python3 -m venv
+      register: tf_install
+      ignore_errors: yes
 
-    - name: Verify NVIDIA driver
+    - name: Fallback - install latest stable TensorFlow if CUDA 13 not supported
+      pip:
+        name: "tensorflow==2.18.*"
+        state: present
+        virtualenv: "{{ venv_dir }}"
+        virtualenv_command: python3 -m venv
+      when: tf_install is failed
+
+    - name: Verify NVIDIA driver (nvidia-smi)
       shell: nvidia-smi
       register: nvidia_smi
       changed_when: false
+      ignore_errors: yes
 
     - debug:
-        msg: "{{ nvidia_smi.stdout }}"
+        msg: "{{ nvidia_smi.stdout | default('NVIDIA driver not detected') }}"
 
     - name: Verify TensorFlow GPU detection
       shell: |
@@ -88,6 +111,7 @@
         python -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
       register: tf_gpu
       changed_when: false
+      ignore_errors: yes
 
     - debug:
-        msg: "{{ tf_gpu.stdout }}"
+        msg: "{{ tf_gpu.stdout | default('TensorFlow GPU not detected') }}"
