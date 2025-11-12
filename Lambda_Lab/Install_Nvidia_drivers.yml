@@ -27,20 +27,20 @@
     - name: Clean up any existing NVIDIA or CUDA packages
       shell: |
         apt-get clean
-        apt-get autoremove -y
+        apt-get autoremove -y || true
         apt-get purge -y 'cuda*' 'nvidia-*' || true
         apt-get update -y
       args:
-        warn: false
+        executable: /bin/bash
 
     - name: Add NVIDIA CUDA repository keyring
-      ansible.builtin.get_url:
+      get_url:
         url: https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
         dest: /tmp/cuda-keyring.deb
         mode: '0644'
 
     - name: Install CUDA repository keyring
-      ansible.builtin.apt:
+      apt:
         deb: /tmp/cuda-keyring.deb
 
     - name: Update apt cache after adding repo
@@ -52,7 +52,7 @@
         name: nvidia-driver-550
         state: present
 
-    # If you prefer open-source drivers instead, uncomment below:
+    # Optional: open-source driver alternative
     # - name: Install NVIDIA open kernel driver
     #   apt:
     #     name: nvidia-open
@@ -70,7 +70,16 @@
         create: yes
         mode: '0644'
 
-    - name: Reboot after driver and CUDA install (if required)
+    - name: Autoremove any unnecessary packages
+      apt:
+        autoremove: yes
+
+    - name: Clean APT cache
+      shell: apt-get clean
+      args:
+        executable: /bin/bash
+
+    - name: Reboot after driver and CUDA install
       reboot:
         msg: "Rebooting to load new NVIDIA kernel modules..."
         pre_reboot_delay: 5
@@ -109,6 +118,8 @@
       shell: |
         source {{ venv_dir }}/bin/activate
         python -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
+      args:
+        executable: /bin/bash
       register: tf_gpu
       changed_when: false
 
