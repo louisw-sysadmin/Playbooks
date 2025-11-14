@@ -26,21 +26,11 @@
         name: code
         state: present
 
-    # -------------------------------------------------------
-    # Install Python + virtual environment
-    # -------------------------------------------------------
-    - name: Install Python3, pip and venv packages
+  # -------------------------------------------------------
+  # Install Python + virtual environment
+  # -------------------------------------------------------
+    - name: Install Jupyter Notebook from apt
       apt:
-        name:
-          - python3
-          - python3-pip
-          - python3-venv
+        name: jupyter-notebook
         state: present
-
-    - name: Create virtual environment for Jupyter
-      command: python3 -m venv /opt/jupyter
-      args:
-        creates: /opt/jupyter/bin/activate
-
-    - name: Install Jupyter Notebook inside the venv
-      command: "/opt/jupyter/bin/pip install notebook"
+        update_cache: yes
