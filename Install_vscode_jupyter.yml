@@ -34,3 +34,8 @@
         name: jupyter-notebook
         state: present
         update_cache: yes
+    - name: Install jupyter-CORE from apt 
+      apt:
+        name: jupyter-core
+        state: present
+        update_cache: yes
