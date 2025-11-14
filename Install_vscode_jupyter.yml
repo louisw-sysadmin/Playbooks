@@ -1,0 +1,44 @@
+---
+- name: Install VS Code and Classic Jupyter Notebook
+  hosts: all
+  become: yes
+
+  tasks:
+    # -------------------------------------------------------
+    # Install VS Code
+    # -------------------------------------------------------
+    - name: Add Microsoft GPG key
+      apt_key:
+        url: https://packages.microsoft.com/keys/microsoft.asc
+        state: present
+
+    - name: Add VS Code repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://packages.microsoft.com/repos/code stable main"
+        state: present
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install Visual Studio Code
+      apt:
+        name: code
+        state: present
+
+    # -------------------------------------------------------
+    # Install Python + Classic Jupyter Notebook
+    # -------------------------------------------------------
+    - name: Install Python3, pip, and venv
+      apt:
+        name:
+          - python3
+          - python3-pip
+          - python3-venv
+        state: present
+
+    - name: Install classic Jupyter Notebook
+      pip:
+        name: notebook
+        executable: pip3
+  
