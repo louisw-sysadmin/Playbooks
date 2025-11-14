@@ -1,5 +1,5 @@
 ---
-- name: Install VS Code and Classic Jupyter Notebook
+- name: Install VS Code + Jupyter Notebook (PEP668 Compliant)
   hosts: all
   become: yes
 
@@ -27,9 +27,9 @@
         state: present
 
     # -------------------------------------------------------
-    # Install Python + Classic Jupyter Notebook
+    # Install Python + virtual environment
     # -------------------------------------------------------
-    - name: Install Python3, pip, and venv
+    - name: Install Python3, pip and venv packages
       apt:
         name:
           - python3
@@ -37,8 +37,10 @@
           - python3-venv
         state: present
 
-    - name: Install classic Jupyter Notebook
-      pip:
-        name: notebook
-        executable: pip3
-  
+    - name: Create virtual environment for Jupyter
+      command: python3 -m venv /opt/jupyter
+      args:
+        creates: /opt/jupyter/bin/activate
+
+    - name: Install Jupyter Notebook inside the venv
+      command: "/opt/jupyter/bin/pip install notebook"
