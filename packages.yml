@@ -1,22 +1,10 @@
 ---
-- name: Full Python ML + Audio environment
+- name: Install ML + audio stack in virtualenv
   hosts: all
   become: yes
 
   vars:
-    python_packages:
-      - numpy
-      - librosa
-      - soundfile
-      - matplotlib
-      - seaborn
-      - scikit-learn
-      - tensorflow
-      - tqdm
-      - sounddevice
-      - scipy
-      - gTTS
-      - pygame
+    venv_path: /opt/mlaudioenv
 
   tasks:
 
@@ -24,67 +12,47 @@
       apt:
         update_cache: yes
 
-    - name: Install system dependencies for audio, ML, and build tools
+    - name: Install system dependencies
       apt:
         name:
           - python3
+          - python3-venv
           - python3-dev
           - python3-pip
-          - python3-venv
           - build-essential
           - cmake
-          - git
-
-          # Numerical libraries (BLAS/LAPACK)
+          - gfortran
           - libblas-dev
           - liblapack-dev
           - libatlas-base-dev
-          - gfortran
-
-          # Sound + audio dependencies
+          - libsndfile1-dev
           - libasound2t64
           - libasound2-dev
-          - libsndfile1
-          - libsndfile1-dev
           - portaudio19-dev
           - libportaudio2
           - libportaudiocpp0
-          - alsa-utils
-
-          # FFmpeg for audio/video decoding
           - ffmpeg
-
-          # SDL for pygame
           - libsdl2-dev
           - libsdl2-image-dev
           - libsdl2-mixer-dev
           - libsdl2-ttf-dev
-
-          # Codec libs
           - libogg-dev
           - libvorbis-dev
           - libflac-dev
-
-          # Misc for scipy/matplotlib
-          - zlib1g-dev
           - libjpeg-dev
           - libpng-dev
           - libfreetype6-dev
-          - pkg-config
-
-          # TensorFlow recommended libraries
           - libhdf5-dev
           - hdf5-tools
         state: present
 
-    - name: Upgrade pip
-      pip:
-        name: pip
-        executable: pip3
-        state: latest
+    - name: Create virtual environment
+      command: python3 -m venv {{ venv_path }}
+      args:
+        creates: "{{ venv_path }}/bin/activate"
 
-    - name: Install required Python packages
-      pip:
-        name: "{{ python_packages }}"
-        executable: pip3
-        state: present
+    - name: Upgrade pip inside venv
+      command: "{{ venv_path }}/bin/pip install -U pip setuptools wheel"
+
+    - name: Install Python packages inside venv
+      command: "{{ venv_path }}/bin/pip install numpy librosa soundfile matplotlib seaborn scikit-learn tensorflow tqdm sounddevice scipy gTTS pygame"
