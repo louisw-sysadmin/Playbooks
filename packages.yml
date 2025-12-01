@@ -1,0 +1,101 @@
+---
+- name: Full Python ML + Audio environment
+  hosts: all
+  become: yes
+
+  vars:
+    python_packages:
+      - numpy
+      - librosa
+      - soundfile
+      - matplotlib
+      - seaborn
+      - scikit-learn
+      - tensorflow
+      - tqdm
+      - sounddevice
+      - scipy
+      - gTTS
+      - pygame
+
+  tasks:
+
+    ####################################################################
+    # System Packages
+    ####################################################################
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install system dependencies for audio, ML, build tools
+      apt:
+        name:
+          - python3
+          - python3-dev
+          - python3-pip
+          - python3-venv
+
+          # build tools
+          - build-essential
+          - cmake
+          - git
+
+          # BLAS/LAPACK for numpy/scipy/scikit-learn
+          - libblas-dev
+          - liblapack-dev
+          - libatlas-base-dev
+          - gfortran
+
+          # sound libraries
+          - libsndfile1
+          - libsndfile1-dev
+          - libasound2
+          - libasound2-dev
+          - portaudio19-dev
+          - libportaudio2
+          - libportaudiocpp0
+          - alsa-utils
+
+          # ffmpeg for librosa / audio processing
+          - ffmpeg
+
+          # SDL (for pygame)
+          - libsdl2-dev
+          - libsdl2-image-dev
+          - libsdl2-mixer-dev
+          - libsdl2-ttf-dev
+
+          # Ogg/Vorbis/FLAC codecs
+          - libogg-dev
+          - libvorbis-dev
+          - libflac-dev
+
+          # misc libs used by scipy/matplotlib
+          - libjpeg-dev
+          - zlib1g-dev
+          - libpng-dev
+          - libfreetype6-dev
+          - pkg-config
+
+          # TensorFlow recommended deps
+          - libhdf5-dev
+          - hdf5-tools
+
+        state: present
+
+    ####################################################################
+    # Upgrade pip + install Python packages
+    ####################################################################
+
+    - name: Upgrade pip
+      pip:
+        name: pip
+        state: latest
+        executable: pip3
+
+    - name: Install Python packages
+      pip:
+        name: "{{ python_packages }}"
+        executable: pip3
+        state: present
