@@ -5,7 +5,7 @@
   tasks:
     - name: Ensure the user is removed
       ansible.builtin.user:
-        name: louisw  # REPLACE THIS with the actual username
+        name: deligiannidisl  # REPLACE THIS with the actual username
         state: absent
         remove: yes  # Delete the user's home directory and mail spool
       

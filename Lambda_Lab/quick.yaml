@@ -1,0 +1,13 @@
+- hosts: all
+  become: yes
+  tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Dist upgrade
+      ansible.builtin.apt:
+        upgrade: dist
+        autoremove: yes
+

@@ -1,0 +1,27 @@
+- name: Install Checkmk Agent 2.4.0p17
+  hosts: all
+  become: yes
+
+  vars:
+    checkmk_server: "10.64.0.156"
+    site_id: "monitoring"
+    agent_pkg: "check-mk-agent_2.4.0p17-1_all.deb"
+    agent_url: "http://{{ checkmk_server }}/{{ site_id }}/check_mk/agents/{{ agent_pkg }}"
+
+  tasks:
+    - name: Download Checkmk agent
+      ansible.builtin.get_url:
+        url: "{{ agent_url }}"
+        dest: "/tmp/{{ agent_pkg }}"
+        mode: "0644"
+
+    - name: Install Checkmk agent
+      ansible.builtin.apt:
+        deb: "/tmp/{{ agent_pkg }}"
+
+    - name: Enable and start Checkmk agent socket
+      ansible.builtin.systemd:
+        name: check-mk-agent.socket
+        enabled: yes
+        state: started
+

@@ -1,0 +1,40 @@
+{
+ "collection_info": {
+  "namespace": "grafana",
+  "name": "grafana",
+  "version": "6.0.3",
+  "authors": [
+   "Grafana Labs <grafana.com>",
+   "Ishan Jain <ishan.jain@grafana.com>",
+   "Gerard van Engelen <g.vanengelen@codepeople.nl>"
+  ],
+  "readme": "README.md",
+  "tags": [
+   "grafana",
+   "observability",
+   "monitoring"
+  ],
+  "description": "Ansible collection to manage Grafana resources",
+  "license": [
+   "GPL-3.0-or-later"
+  ],
+  "license_file": null,
+  "dependencies": {
+   "community.general": ">=8.2.0",
+   "community.grafana": ">=1.5.4",
+   "ansible.posix": ">=1.5.4"
+  },
+  "repository": "https://github.com/grafana/grafana-ansible-collection",
+  "documentation": "https://docs.ansible.com/ansible/latest/collections/grafana/grafana/index.html",
+  "homepage": null,
+  "issues": "https://github.com/grafana/grafana-ansible-collection/issues"
+ },
+ "file_manifest_file": {
+  "name": "FILES.json",
+  "ftype": "file",
+  "chksum_type": "sha256",
+  "chksum_sha256": "18fe2c7d930c5a88af405483a41e9e4e4847ee2e3b65609232af7f0a87072ac3",
+  "format": 1
+ },
+ "format": 1
+}

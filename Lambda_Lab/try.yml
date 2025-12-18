@@ -1,0 +1,6 @@
+- hosts: lambda
+  become: yes
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
