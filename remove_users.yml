@@ -1,0 +1,38 @@
+---
+- name: Remove listed users safely
+  hosts: all
+  become: true
+  gather_facts: false
+
+  vars:
+    min_uid_to_remove: 1000
+    remove_home: true
+
+  tasks:
+    - name: Load user list from vars file
+      ansible.builtin.include_vars:
+        file: users_to_remove.yml
+
+    - name: Get passwd database
+      ansible.builtin.getent:
+        database: passwd
+
+    - name: Build a safe list (exists + UID >= min)
+      ansible.builtin.set_fact:
+        safe_users_to_remove: "{{ safe_users_to_remove | default([]) + [item] }}"
+      loop: "{{ users_to_remove }}"
+      when:
+        - item in ansible_facts.getent_passwd
+        - (ansible_facts.getent_passwd[item][1] | int) >= (min_uid_to_remove | int)
+
+    - name: Show what will be removed (dry visibility)
+      ansible.builtin.debug:
+        var: safe_users_to_remove
+
+    - name: Remove users
+      ansible.builtin.user:
+        name: "{{ item }}"
+        state: absent
+        remove: "{{ remove_home }}"
+      loop: "{{ safe_users_to_remove | default([]) }}"
+

@@ -1,27 +1,15 @@
-- name: Register Checkmk agents
-  hosts: all
-  become: yes
-  gather_facts: no
-
-  vars_files:
-    - vault.yml
-
+---
+- name: Register Checkmk agents with TLS
+  hosts: SuperComputer
+  become: true
   tasks:
-    - name: Register agent (timeout 45s)
+    - name: Register Checkmk agent with TLS
       ansible.builtin.shell: |
-        timeout 45s cmk-agent-ctl register \
+        cmk-agent-ctl register \
+          --hostname "$(hostname -f)" \
           --server 10.64.0.156 \
           --site monitoring \
           --user agent_registration \
-          --hostname {{ inventory_hostname }} \
+          --password 'zm(nhkbWf6jYg7wf' \
           --trust-cert
-      environment:
-        CMK_AGENT_CTL_PASSWORD: "{{ cmk_agent_password }}"
-      register: reg
-      changed_when: reg.rc == 0
-      failed_when: reg.rc != 0
-
-    - name: Show result
-      ansible.builtin.debug:
-        var: reg.stderr
 
