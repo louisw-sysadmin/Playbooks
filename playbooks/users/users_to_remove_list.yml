@@ -1,4 +1,4 @@
-# users_to_remove.yml
+# users_to_remove_list.yml
 users_to_remove:
   # base usernames (from your lambda07/lambda10 lists)
   - wuj

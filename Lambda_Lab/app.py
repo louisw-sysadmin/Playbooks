@@ -215,7 +215,7 @@ def index():
             [
                 "ansible-playbook",
                 "-i", "/etc/ansible/hosts",
-                "create_user.yml",
+                "../playbooks/users/create_user_account.yml",
                 "--extra-vars", extra_vars
             ],
             capture_output=True,

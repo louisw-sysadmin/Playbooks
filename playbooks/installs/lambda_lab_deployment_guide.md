@@ -54,7 +54,7 @@ Place the app under the sysadmin home:
 ```
 /home/sysadmin/Playbooks/Lambda_Lab/
 ├── app.py                  # Flask app (keep separate from this doc)
-├── create_user.yml         # Ansible play to create users
+├── ../playbooks/users/create_user_account.yml         # Ansible play to create users
 ├── templates/
 │   └── index.html          # Simple form (name, email)
 ├── users.csv               # Append-only audit of created users
@@ -99,7 +99,7 @@ python3 app.py
 ---
 
 ## 4) Ansible Playbook (user creation)
-File: `~/Playbooks/Lambda_Lab/create_user.yml`
+File: `~/Playbooks/playbooks/users/create_user_account.yml`
 ```yaml
 ---
 - name: Add new user to Lambda servers
@@ -143,7 +143,7 @@ File: `~/Playbooks/Lambda_Lab/create_user.yml`
 
 **Manual test (bypass Flask):**
 ```bash
-echo '{"username":"demo","full_name":"Demo User","email":"demo@wit.edu","password":"Temp123"}' | ansible-playbook -i /etc/ansible/hosts create_user.yml --extra-vars=@/dev/stdin
+echo '{"username":"demo","full_name":"Demo User","email":"demo@wit.edu","password":"Temp123"}' | ansible-playbook -i /etc/ansible/hosts ~/Playbooks/playbooks/users/create_user_account.yml --extra-vars=@/dev/stdin
 ```
 
 ---
@@ -301,7 +301,7 @@ sudo systemctl restart unifi
 
 **Backups**
 - `~/Playbooks/Lambda_Lab/users.csv`
-- `~/Playbooks/Lambda_Lab/app.py`, `create_user.yml`, `templates/`
+- `~/Playbooks/Lambda_Lab/app.py`, `~/Playbooks/playbooks/users/create_user_account.yml`, `templates/`
 - `/etc/nginx/sites-available/lambda_app`
 - `/etc/systemd/system/lambda_app.service`
 - `/etc/ansible/hosts`
@@ -336,7 +336,7 @@ sudo systemctl reload nginx
 ## Appendix A — File Reference
 - **Flask app:** `/home/sysadmin/Playbooks/Lambda_Lab/app.py`  
   (contains username pre-check, WIT-only email enforcement, logging, email, Ansible integration)
-- **Ansible playbook:** `/home/sysadmin/Playbooks/Lambda_Lab/create_user.yml`
+- **Ansible playbook:** `/home/sysadmin/Playbooks/playbooks/users/create_user_account.yml`
 - **Nginx site config:** `/etc/nginx/sites-available/lambda_app`
 - **systemd unit:** `/etc/systemd/system/lambda_app.service`
 - **Inventory:** `/etc/ansible/hosts`

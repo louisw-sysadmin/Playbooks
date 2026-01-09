@@ -11,7 +11,7 @@
   tasks:
     - name: Load user list from vars file
       ansible.builtin.include_vars:
-        file: users_to_remove.yml
+        file: users_to_remove_list.yml
 
     - name: Get passwd database
       ansible.builtin.getent:
