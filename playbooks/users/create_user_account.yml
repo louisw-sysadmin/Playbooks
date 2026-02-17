@@ -8,36 +8,29 @@
     group_name: students
 
   pre_tasks:
-    - name: Validate web-form inputs
+    - name: Validate required inputs
       ansible.builtin.assert:
         that:
           - full_name is defined
           - email is defined
+          - temp_password is defined
           - (email | lower) is match('^[a-z0-9._%+-]+@wit\.edu$')
-        fail_msg: "Invalid input. Must provide full_name and a valid @wit.edu email."
+          - (temp_password | length) >= 8
+        fail_msg: "Missing or invalid input (full_name, email, temp_password required)."
 
-    # These two are created ONCE, then used everywhere
-    - name: Derive username (run once)
+    - name: Derive username from email
       ansible.builtin.set_fact:
         username: >-
           {{
             (email | lower).split('@')[0]
             | regex_replace('[^a-z0-9._-]', '')
           }}
-      run_once: true
-
-    - name: Generate ONE shared temporary password (run once)
-      ansible.builtin.set_fact:
-        temp_password: "{{ lookup('ansible.builtin.password', '/dev/null', length=20) }}"
-      run_once: true
-      no_log: true
 
     - name: Fail if derived username is empty
       ansible.builtin.assert:
         that:
           - username | length > 0
         fail_msg: "Derived username is empty after sanitizing email."
-      run_once: true
 
   tasks:
     - name: Ensure 'students' group exists
@@ -54,16 +47,16 @@
         append: true
         comment: "{{ full_name }} ({{ email }})"
 
-    - name: Set the SAME temp password on every host (no passlib)
+    - name: Set password (NO passlib required)
       ansible.builtin.shell: |
         echo '{{ username }}:{{ temp_password }}' | chpasswd
       args:
         executable: /bin/bash
       no_log: true
 
-    - name: Force password change on first login
+    - name: Force password change at first login
       ansible.builtin.command: "chage -d 0 {{ username }}"
 
-    - name: Summary
+    - name: Success message
       ansible.builtin.debug:
-        msg: "Created/updated {{ username }} on {{ inventory_hostname }} (must change password at first login)."
+        msg: "User {{ username }} updated on {{ inventory_hostname }}"
