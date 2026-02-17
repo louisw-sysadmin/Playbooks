@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect
+from flask import Flask, render_template, request
 from flask_mail import Mail, Message
 from email.utils import parseaddr
 import subprocess
@@ -7,6 +7,7 @@ import os
 import random
 import string
 import re
+import json
 import logging
 
 app = Flask(__name__)
@@ -17,7 +18,6 @@ app = Flask(__name__)
 LOG_FILE = "/var/log/lambda_app.log"
 os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
 
-# File handler: warnings and errors only
 file_handler = logging.FileHandler(LOG_FILE)
 file_handler.setLevel(logging.WARNING)
 file_handler.setFormatter(logging.Formatter(
@@ -25,7 +25,6 @@ file_handler.setFormatter(logging.Formatter(
     "%Y-%m-%d %H:%M:%S"
 ))
 
-# Console handler: show everything
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.INFO)
 console_handler.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
@@ -33,8 +32,7 @@ console_handler.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
 logging.getLogger().handlers = [file_handler, console_handler]
 logging.getLogger().setLevel(logging.DEBUG)
 
-# Quiet Flask access logs in the file
-flask_log = logging.getLogger('werkzeug')
+flask_log = logging.getLogger("werkzeug")
 flask_log.setLevel(logging.ERROR)
 
 # ==============================
@@ -52,65 +50,113 @@ mail = Mail(app)
 # ==============================
 # Helper functions
 # ==============================
-def generate_password(length=10):
+def generate_password(length=12):
+    # more entropy than 10, but still human-typable
     chars = string.ascii_letters + string.digits
-    return ''.join(random.choice(chars) for _ in range(length))
+    return "".join(random.choice(chars) for _ in range(length))
+
 
 def is_wit_email(raw):
-    name, addr = parseaddr((raw or "").strip())
+    _, addr = parseaddr((raw or "").strip())
     if not addr or "@" not in addr:
         return False
     local, domain = addr.rsplit("@", 1)
     return bool(local) and domain.casefold() == "wit.edu"
 
+
 def sanitize_input(value):
-    return re.sub(r"[^a-zA-Z0-9@.\-_' ]", "", value or "")
+    return re.sub(r"[^a-zA-Z0-9@.\-_' ]", "", value or "").strip()
+
+
+def derive_username_from_email(email):
+    return re.sub(r"[^a-z0-9._-]", "", (email or "").split("@")[0].lower()).strip()
+
+
+def parse_ansible_failures(ansible_text):
+    """
+    Returns (failed_hosts, unreachable_hosts) as sorted unique lists.
+
+    Matches lines like:
+      fatal: [lambda7]: FAILED! =>
+      fatal: [lambda7]: UNREACHABLE! =>
+    """
+    failed = set()
+    unreachable = set()
+
+    for raw in (ansible_text or "").splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+
+        m = re.search(r"^fatal:\s*\[(?P<host>[^\]]+)\]:\s*FAILED!", line, re.IGNORECASE)
+        if m:
+            failed.add(m.group("host"))
+            continue
+
+        m = re.search(r"^fatal:\s*\[(?P<host>[^\]]+)\]:\s*UNREACHABLE!", line, re.IGNORECASE)
+        if m:
+            unreachable.add(m.group("host"))
+            continue
+
+    return sorted(failed), sorted(unreachable)
+
+
+def build_summary(returncode, failed_hosts, unreachable_hosts):
+    if returncode == 0 and not failed_hosts and not unreachable_hosts:
+        return "✅ All hosts completed successfully."
+
+    parts = []
+    if failed_hosts:
+        parts.append("FAILED: {0}".format(", ".join(failed_hosts)))
+    if unreachable_hosts:
+        parts.append("UNREACHABLE: {0}".format(", ".join(unreachable_hosts)))
+
+    if not parts:
+        parts.append("Ansible returned non-zero exit code {0}. Check logs.".format(returncode))
+
+    return "⚠️ " + " | ".join(parts)
+
 
 def send_email_notification(fullname, email, username, password, ansible_summary):
+    # Don't ever log the password; only email it
     try:
         admin_msg = Message(
-            subject=f"[Lambda GPU Labs] New User Added: {username}",
+            subject="[Lambda GPU Labs] New User Added: {0}".format(username),
             recipients=["louisw@wit.edu"],
-            body=f"""
-A new user has been created via the Lambda GPU Lab system.
-
-Full Name: {fullname}
-Email: {email}
-Username: {username}
-Temporary Password: {password}
-
-Ansible Summary:
-{ansible_summary}
-
----
-This email was sent automatically by the Lambda Flask provisioning app.
-"""
+            body=(
+                "A new user has been created via the Lambda GPU Lab system.\n\n"
+                "Full Name: {0}\n"
+                "Email: {1}\n"
+                "Username: {2}\n"
+                "Temporary Password: {3}\n\n"
+                "Ansible Summary:\n"
+                "{4}\n\n"
+                "---\n"
+                "This email was sent automatically by the Lambda Flask provisioning app.\n"
+            ).format(fullname, email, username, password, ansible_summary)
         )
         mail.send(admin_msg)
 
         student_msg = Message(
             subject="Your Lambda GPU Lab Account Details",
             recipients=[email],
-            body=f"""
-Hello {fullname},
-
-Your Lambda GPU Lab account has been created successfully.
-
-Username: {username}
-Temporary Password: {password}
-
-Please log in and change your password on first use.
-
-Thanks,
-WIT School of Computing and Data Science
-"""
+            body=(
+                "Hello {0},\n\n"
+                "Your Lambda GPU Lab account has been created.\n\n"
+                "Username: {1}\n"
+                "Temporary Password: {2}\n\n"
+                "Please log in and change your password on first use.\n\n"
+                "Thanks,\n"
+                "WIT School of Computing and Data Science\n"
+            ).format(fullname, username, password)
         )
         mail.send(student_msg)
 
-        logging.info(f"Emails sent successfully to {email} and admin for {username}")
+        logging.info("Emails sent successfully to %s and admin for %s", email, username)
+
     except Exception as e:
-        logging.error(f"Failed to send email for {username}: {e}")
-        print(f"[ERROR] Failed to send email: {e}")
+        logging.error("Failed to send email for %s: %s", username, e)
+
 
 # ==============================
 # Check if user exists
@@ -123,7 +169,7 @@ def check_username_exists(username):
                 "all",
                 "-i", "/etc/ansible/hosts",
                 "-m", "shell",
-                "-a", f"id -u {username}",
+                "-a", "id -u {0}".format(username),
                 "--one-line"
             ],
             capture_output=True,
@@ -137,6 +183,10 @@ def check_username_exists(username):
             line = line.strip()
             if not line:
                 continue
+
+            # Typical line formats:
+            # host | UNREACHABLE! => ...
+            # host | SUCCESS | rc=0 >> ...
             if "UNREACHABLE!" in line:
                 host = line.split()[0]
                 unreachable.append(host)
@@ -144,21 +194,12 @@ def check_username_exists(username):
                 host = line.split()[0]
                 exists_on.append(host)
 
-        if exists_on and not unreachable:
-            logging.info(f"Username '{username}' already exists on: {', '.join(exists_on)}")
-        elif exists_on and unreachable:
-            logging.info(f"Username '{username}' exists on: {', '.join(exists_on)}")
-            logging.warning(f"Some hosts unreachable during pre-check: {', '.join(unreachable)}")
-        elif not exists_on and unreachable:
-            logging.info(f"Username '{username}' not found, but some hosts unreachable: {', '.join(unreachable)}")
-        else:
-            logging.info(f"Username '{username}' not found on any reachable hosts.")
-
-        return exists_on, unreachable
+        return sorted(set(exists_on)), sorted(set(unreachable))
 
     except Exception as e:
-        logging.error(f"Username existence check failed for {username}: {e}")
+        logging.error("Username existence check failed for %s: %s", username, e)
         return [], []
+
 
 # ==============================
 # Routes
@@ -169,96 +210,92 @@ def index():
         fullname = sanitize_input(request.form.get("fullname"))
         email = sanitize_input(request.form.get("email"))
 
+        if not fullname or not email:
+            return "Missing fullname or email.", 400
+
         if not is_wit_email(email):
-            msg = f"Rejected non-WIT email attempt: {email}"
-            logging.warning(msg)
+            logging.warning("Rejected non-WIT email attempt: %s", email)
             return "Only @wit.edu email addresses are allowed.", 403
 
-        username = email.split("@")[0]
-        logging.info(f"Pre-check: verifying username availability for '{username}'")
+        username = derive_username_from_email(email)
+        if not username:
+            return "Could not derive a valid username from email.", 400
 
+        logging.info("Pre-check: verifying username availability for '%s'", username)
         exists_on, unreachable = check_username_exists(username)
+
         if exists_on:
-            msg = f"Username '{username}' already exists on: {', '.join(exists_on)}"
+            msg = "Username '{0}' already exists on: {1}".format(username, ", ".join(exists_on))
             logging.warning(msg)
-            return f"""
+            return """
                 <h2 style='font-family:sans-serif; color:#856404; text-align:center; margin-top:50px;'>
                     ⚠️ Username already exists<br>
-                    <small>{msg}</small><br><br>
+                    <small>{0}</small><br><br>
                     No changes were made. Choose a different email/username.
                 </h2>
                 <div style='text-align:center; margin-top:20px;'>
                     <a href='/' style='color:#007bff; text-decoration:none;'>← Back to form</a>
                 </div>
-            """, 409
+            """.format(msg), 409
 
         password = generate_password()
-        logging.info(f"Starting account creation for {fullname} ({email}) as '{username}'")
+        logging.info("Starting account creation for %s (%s) as '%s'", fullname, email, username)
 
-        # Save user to CSV
-        file_exists = os.path.isfile("users.csv")
-        with open("users.csv", "a", newline="") as csvfile:
-            writer = csv.writer(csvfile)
-            if not file_exists:
-                writer.writerow(["Full Name", "Email", "Username", "Password"])
-            writer.writerow([fullname, email, username, password])
+        # Save user to CSV (optional — consider removing if you don't want stored passwords)
+        try:
+            file_exists = os.path.isfile("users.csv")
+            with open("users.csv", "a", newline="") as csvfile:
+                writer = csv.writer(csvfile)
+                if not file_exists:
+                    writer.writerow(["Full Name", "Email", "Username", "Password"])
+                writer.writerow([fullname, email, username, password])
+        except Exception as e:
+            logging.warning("Failed to write users.csv: %s", e)
 
-        # Run Ansible playbook
-        extra_vars = (
-            f"username='{username}' "
-            f"full_name='{fullname}' "
-            f"email='{email}' "
-            f"password='{password}'"
-        )
+        # Run Ansible playbook using JSON extra-vars (fixes quoting issues)
+        extra_vars = {
+            "username": username,
+            "full_name": fullname,
+            "email": email,
+            "password": password,
+        }
 
         result = subprocess.run(
             [
                 "ansible-playbook",
                 "-i", "/etc/ansible/hosts",
                 "../playbooks/users/create_user_account.yml",
-                "--extra-vars", extra_vars
+                "--extra-vars", json.dumps(extra_vars),
             ],
             capture_output=True,
             text=True
         )
 
-        ansible_output = result.stdout + "\n" + result.stderr
-        failed_hosts = []
+        ansible_output = (result.stdout or "") + "\n" + (result.stderr or "")
+        failed_hosts, unreachable_hosts = parse_ansible_failures(ansible_output)
+        summary = build_summary(result.returncode, failed_hosts, unreachable_hosts)
 
-        # Smarter detection: only mark failures that are real
-        for line in ansible_output.splitlines():
-            if re.search(r"(UNREACHABLE!|FAILED!)", line, re.IGNORECASE) and not re.search(r"failed=0", line):
-                try:
-                    host = line.split()[0].strip()
-                    failed_hosts.append(host)
-                except Exception:
-                    continue
-
-        if result.returncode != 0 or failed_hosts:
-            summary = f"⚠️ Some hosts failed or were unreachable: {', '.join(failed_hosts) if failed_hosts else 'See logs for details.'}"
-            logging.warning(f"Ansible returned non-zero exit code ({result.returncode}) or failed hosts: {failed_hosts}")
+        if result.returncode != 0:
+            logging.warning("Ansible exit code=%s summary=%s", result.returncode, summary)
         else:
-            summary = "✅ All hosts completed successfully."
-            logging.info("Ansible completed successfully on all hosts.")
+            logging.info("Ansible completed. %s", summary)
 
         send_email_notification(fullname, email, username, password, summary)
-        logging.info(f"Account creation finished for {username} ({summary})")
+        logging.info("Account creation finished for %s (%s)", username, summary)
 
-        return f"""
+        return """
         <h2 style='font-family:sans-serif; color:#155724; text-align:center; margin-top:50px;'>
-            ✅ Account creation initiated for {fullname}<br>
-            <small>{summary}</small><br><br>
+            ✅ Account creation initiated for {0}<br>
+            <small>{1}</small><br><br>
             Please check your WIT email for credentials.
         </h2>
         <div style='text-align:center; margin-top:20px;'>
             <a href='/' style='color:#007bff; text-decoration:none;'>← Back to form</a>
         </div>
-        """
+        """.format(fullname, summary)
 
     return render_template("index.html")
 
-# ==============================
-# Start Flask app
-# ==============================
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

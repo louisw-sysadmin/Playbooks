@@ -6,6 +6,17 @@
   vars:
     group: students
 
+  pre_tasks:
+    - name: Validate required vars from Flask
+      ansible.builtin.assert:
+        that:
+          - username is defined
+          - full_name is defined
+          - email is defined
+          - password is defined
+          - (email | lower) is match('^[a-z0-9._%+-]+@wit\.edu$')
+        fail_msg: "Missing/invalid input. Flask must provide username, full_name, email, password and email must be @wit.edu."
+
   tasks:
     - name: Ensure 'students' group exists
       ansible.builtin.group:
@@ -18,14 +29,15 @@
         shell: /bin/bash
         create_home: true
         comment: "{{ full_name }} ({{ email }})"
-        password: "{{ password | password_hash('sha512') }}"
         groups: "{{ group }}"
         append: true
+        password: "{{ password | password_hash('sha512') }}"
+      no_log: true
 
     - name: Force password change on first login
-      ansible.builtin.command: chage -d 0 {{ username }}
+      ansible.builtin.command: "chage -d 0 {{ username }}"
       changed_when: true
 
     - name: Confirmation message
       ansible.builtin.debug:
-        msg: "User {{ username }} created in group '{{ group }}' and must change password at first login."
+        msg: "User {{ username }} created/updated in group '{{ group }}' and must change password at first login."
