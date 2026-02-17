@@ -236,11 +236,13 @@ def index():
         }
 
         cmd = [
-            "ansible-playbook",
-            "-i", INVENTORY_PATH,
-            PLAYBOOK_PATH,
-            "--extra-vars", str(extra_vars).replace("'", '"')
-        ]
+    "ansible-playbook",
+    "-i", INVENTORY_PATH,
+    PLAYBOOK_PATH,
+    "--limit", "lambda",
+    "--extra-vars", str(extra_vars).replace("'", '"')
+]
+
 
         result = subprocess.run(cmd, capture_output=True, text=True, cwd=BASE_DIR)
 
