@@ -1,6 +1,6 @@
 ---
 - name: Add new user to Lambda servers
-  hosts: all
+  hosts: lambda
   become: true
   gather_facts: false
 
