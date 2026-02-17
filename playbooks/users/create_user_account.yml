@@ -1,11 +1,11 @@
 ---
 - name: Add new user to Lambda servers
-  hosts: lambda
+  hosts: all
   become: true
   gather_facts: false
 
   vars:
-    group: students
+    group_name: students
 
   pre_tasks:
     - name: Validate web-form inputs
@@ -13,47 +13,65 @@
         that:
           - full_name is defined
           - email is defined
-          - (email | lower) is match('.*@wit\.edu$')
-        fail_msg: "full_name and a valid @wit.edu email are required."
+          - (email | lower) is match('^[a-z0-9._%+-]+@wit\.edu$')
+        fail_msg: "Invalid input. Must provide full_name and a valid @wit.edu email."
 
-    - name: Build username from email (sanitize)
+    - name: Derive username from email (part before @, sanitized)
       ansible.builtin.set_fact:
-        username: >-
+        derived_username: >-
           {{
-            (email.split('@')[0] | lower)
+            (email | lower).split('@')[0]
             | regex_replace('[^a-z0-9._-]', '')
           }}
-
-    - name: Generate a temporary password
-      ansible.builtin.set_fact:
-        temp_password: "{{ lookup('ansible.builtin.password', '/dev/null', length=20) }}"
+      run_once: true
+      delegate_to: localhost
 
     - name: Fail if derived username is empty
       ansible.builtin.assert:
         that:
-          - username | length > 0
-        fail_msg: "Derived username from email is empty/invalid."
+          - derived_username | length > 0
+        fail_msg: "Derived username is empty after sanitizing email."
+      run_once: true
+      delegate_to: localhost
+
+    - name: Generate ONE temporary password (same for all hosts)
+      ansible.builtin.set_fact:
+        temp_password: "{{ lookup('ansible.builtin.password', '/dev/null', length=20) }}"
+      run_once: true
+      delegate_to: localhost
+      no_log: true
+
+    - name: Share username/password facts to all hosts
+      ansible.builtin.set_fact:
+        username: "{{ hostvars['localhost']['derived_username'] }}"
+        temp_password: "{{ hostvars['localhost']['temp_password'] }}"
+      no_log: true
 
   tasks:
     - name: Ensure 'students' group exists
       ansible.builtin.group:
-        name: "{{ group }}"
+        name: "{{ group_name }}"
         state: present
 
-    - name: Create or update user account
+    - name: Create or update user (no passlib hashing here)
       ansible.builtin.user:
         name: "{{ username }}"
         shell: /bin/bash
         create_home: true
-        groups: "{{ group }}"
+        groups: "{{ group_name }}"
         append: true
         comment: "{{ full_name }} ({{ email }})"
-        password: "{{ temp_password | password_hash('sha512') }}"
+
+    - name: Set the same temporary password on every host (no passlib)
+      ansible.builtin.shell: |
+        echo '{{ username }}:{{ temp_password }}' | chpasswd
+      args:
+        executable: /bin/bash
+      no_log: true
 
     - name: Force password change on first login
-      ansible.builtin.command:
-        cmd: "chage -d 0 {{ username }}"
+      ansible.builtin.command: "chage -d 0 {{ username }}"
 
-    - name: Confirmation
+    - name: Summary (safe)
       ansible.builtin.debug:
-        msg: "Created {{ username }} ({{ email }}) and forced password change on first login."
+        msg: "Created/updated {{ username }} on {{ inventory_hostname }} (must change password at first login)."
