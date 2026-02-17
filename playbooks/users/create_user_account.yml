@@ -8,29 +8,31 @@
     group_name: students
 
   pre_tasks:
-    - name: Validate required inputs
+    - name: Validate web-form inputs
       ansible.builtin.assert:
         that:
           - full_name is defined
           - email is defined
-          - temp_password is defined
           - (email | lower) is match('^[a-z0-9._%+-]+@wit\.edu$')
-          - (temp_password | length) >= 8
-        fail_msg: "Missing or invalid input (full_name, email, temp_password required)."
+        fail_msg: "Invalid input. Must provide full_name and a valid @wit.edu email."
 
-    - name: Derive username from email
+    - name: Derive username (run once)
       ansible.builtin.set_fact:
-        username: >-
-          {{
-            (email | lower).split('@')[0]
-            | regex_replace('[^a-z0-9._-]', '')
-          }}
+        username: "{{ (email | lower).split('@')[0] | regex_replace('[^a-z0-9._-]', '') }}"
+      run_once: true
+
+    - name: Generate ONE shared temporary password (run once)
+      ansible.builtin.set_fact:
+        temp_password: "{{ lookup('ansible.builtin.password', '/dev/null', length=10) }}"
+      run_once: true
+      no_log: true
 
     - name: Fail if derived username is empty
       ansible.builtin.assert:
         that:
           - username | length > 0
         fail_msg: "Derived username is empty after sanitizing email."
+      run_once: true
 
   tasks:
     - name: Ensure 'students' group exists
@@ -47,16 +49,30 @@
         append: true
         comment: "{{ full_name }} ({{ email }})"
 
-    - name: Set password (NO passlib required)
-      ansible.builtin.shell: |
-        echo '{{ username }}:{{ temp_password }}' | chpasswd
+    - name: Set SAME temp password everywhere (no passlib)
+      ansible.builtin.shell: "echo '{{ username }}:{{ temp_password }}' | chpasswd"
       args:
         executable: /bin/bash
       no_log: true
 
-    - name: Force password change at first login
+    - name: Force password change on first login
       ansible.builtin.command: "chage -d 0 {{ username }}"
 
-    - name: Success message
+  post_tasks:
+    # This collects Ansible's own internal status lists
+    - name: Build JSON summary for Flask (run once)
+      ansible.builtin.set_fact:
+        flask_summary: >-
+          {{
+            {
+              "ok": (ansible_failed_hosts | length == 0) and (ansible_unreachable_hosts | length == 0),
+              "failed_hosts": (ansible_failed_hosts | default([])),
+              "unreachable_hosts": (ansible_unreachable_hosts | default([]))
+            }
+          }}
+      run_once: true
+
+    - name: Print FINAL_JSON_SUMMARY for Flask (one line)
       ansible.builtin.debug:
-        msg: "User {{ username }} updated on {{ inventory_hostname }}"
+        msg: "FINAL_JSON_SUMMARY={{ flask_summary | to_json }}"
+      run_once: true
