@@ -34,8 +34,7 @@ console_handler.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
 logging.getLogger().handlers = [file_handler, console_handler]
 logging.getLogger().setLevel(logging.DEBUG)
 
-flask_log = logging.getLogger("werkzeug")
-flask_log.setLevel(logging.ERROR)
+logging.getLogger("werkzeug").setLevel(logging.ERROR)
 
 # ==============================
 # Email configuration (send-only via local postfix)
@@ -53,12 +52,11 @@ mail = Mail(app)
 # Helper functions
 # ==============================
 def generate_password(length=10):
-    # simple + usable; not meant to be a long-term secret
     chars = string.ascii_letters + string.digits
     return "".join(random.choice(chars) for _ in range(length))
 
 def is_wit_email(raw):
-    name, addr = parseaddr((raw or "").strip())
+    _, addr = parseaddr((raw or "").strip())
     if not addr or "@" not in addr:
         return False
     local, domain = addr.rsplit("@", 1)
@@ -67,19 +65,66 @@ def is_wit_email(raw):
 def sanitize_input(value):
     return re.sub(r"[^a-zA-Z0-9@.\-_' ]", "", value or "").strip()
 
-def extract_final_json_summary(ansible_text):
+def parse_ansible_failures(ansible_text):
     """
-    Looks for a single line from the playbook:
-      FINAL_JSON_SUMMARY={...json...}
+    Extract real hostnames for failures/unreachable from Ansible output.
+    Handles common formats:
+      - fatal: [host]: FAILED! =>
+      - host | UNREACHABLE! =>
+      - host : FAILED! (some callback plugins)
+    Returns (failed_hosts, unreachable_hosts) as sorted unique lists.
     """
-    for line in (ansible_text or "").splitlines():
-        if "FINAL_JSON_SUMMARY=" in line:
-            try:
-                payload = line.split("FINAL_JSON_SUMMARY=", 1)[1].strip()
-                return json.loads(payload)
-            except Exception:
-                return None
-    return None
+    failed = set()
+    unreachable = set()
+
+    for raw_line in (ansible_text or "").splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+
+        # fatal: [lambda7]: FAILED! =>
+        m = re.search(r"^fatal:\s*\[(?P<host>[^\]]+)\]:\s*FAILED!", line, re.IGNORECASE)
+        if m:
+            failed.add(m.group("host"))
+            continue
+
+        # lambda7 | UNREACHABLE! =>
+        m = re.search(r"^(?P<host>[^ \t|]+)\s*\|\s*UNREACHABLE!", line, re.IGNORECASE)
+        if m:
+            unreachable.add(m.group("host"))
+            continue
+
+        # fatal: [lambda7]: UNREACHABLE! =>
+        m = re.search(r"^fatal:\s*\[(?P<host>[^\]]+)\]:\s*UNREACHABLE!", line, re.IGNORECASE)
+        if m:
+            unreachable.add(m.group("host"))
+            continue
+
+        # Some callbacks: host : FAILED! =>
+        m = re.search(r"^(?P<host>[^ \t:]+)\s*:\s*FAILED!", line, re.IGNORECASE)
+        if m:
+            failed.add(m.group("host"))
+            continue
+
+    return sorted(failed), sorted(unreachable)
+
+def build_summary(ansible_text, returncode):
+    failed_hosts, unreachable_hosts = parse_ansible_failures(ansible_text)
+
+    if returncode == 0 and not failed_hosts and not unreachable_hosts:
+        return "✅ All hosts completed successfully."
+
+    parts = []
+    if failed_hosts:
+        parts.append("FAILED: {0}".format(", ".join(failed_hosts)))
+    if unreachable_hosts:
+        parts.append("UNREACHABLE: {0}".format(", ".join(unreachable_hosts)))
+
+    if not parts:
+        # non-zero but no parsed failures (rare, but happens)
+        parts.append("Ansible returned exit code {0}. Check logs.".format(returncode))
+
+    return "⚠️ " + " | ".join(parts)
 
 def send_email_notification(fullname, email, username, password, ansible_summary):
     try:
@@ -120,9 +165,6 @@ def send_email_notification(fullname, email, username, password, ansible_summary
         logging.error("Failed to send email for {0}: {1}".format(username, e))
 
 def check_username_exists(username):
-    """
-    Pre-check across inventory. If any reachable host already has the username, we block.
-    """
     try:
         result = subprocess.run(
             [
@@ -142,15 +184,13 @@ def check_username_exists(username):
 
         combined = (result.stdout or "") + "\n" + (result.stderr or "")
         for line in combined.splitlines():
-            line = line.strip()
-            if not line:
+            s = line.strip()
+            if not s:
                 continue
-            if "UNREACHABLE!" in line:
-                host = line.split()[0]
-                unreachable.append(host)
-            elif "rc=0" in line:
-                host = line.split()[0]
-                exists_on.append(host)
+            if "UNREACHABLE!" in s:
+                unreachable.append(s.split()[0])
+            elif "rc=0" in s:
+                exists_on.append(s.split()[0])
 
         return exists_on, unreachable
     except Exception as e:
@@ -170,15 +210,13 @@ def index():
             return "Full name and email are required.", 400
 
         if not is_wit_email(email):
-            msg = "Rejected non-WIT email attempt: {0}".format(email)
-            logging.warning(msg)
+            logging.warning("Rejected non-WIT email attempt: {0}".format(email))
             return "Only @wit.edu email addresses are allowed.", 403
 
         username = email.split("@")[0].strip().lower()
 
         # Pre-check
-        logging.info("Pre-check: verifying username availability for '{0}'".format(username))
-        exists_on, unreachable = check_username_exists(username)
+        exists_on, _unreach = check_username_exists(username)
         if exists_on:
             msg = "Username '{0}' already exists on: {1}".format(username, ", ".join(exists_on))
             logging.warning(msg)
@@ -193,11 +231,10 @@ def index():
                 </div>
             """.format(msg), 409
 
-        # Generate one password (Flask generates it; playbook sets same password on all hosts)
         password = generate_password()
         logging.info("Starting account creation for {0} ({1}) as '{2}'".format(fullname, email, username))
 
-        # Save user to CSV (local record)
+        # Save CSV (best-effort)
         try:
             file_exists = os.path.isfile("users.csv")
             with open("users.csv", "a", newline="") as csvfile:
@@ -208,13 +245,14 @@ def index():
         except Exception as e:
             logging.warning("Could not write users.csv: {0}".format(e))
 
-        # Run Ansible playbook
         playbook_path = "/home/sysadmin/Playbooks/playbooks/users/create_user_account.yml"
+
+        # IMPORTANT: JSON extra-vars avoids shell quoting issues
         extra_vars = json.dumps({
             "full_name": fullname,
             "email": email,
-            "username": username,  # harmless if playbook derives; useful if you want it
-            "password": password   # harmless if unused; useful if you later re-add it
+            "username": username,
+            "password": password
         })
 
         result = subprocess.run(
@@ -229,40 +267,13 @@ def index():
         )
 
         ansible_output = (result.stdout or "") + "\n" + (result.stderr or "")
-
-        # Prefer the playbook's JSON summary line (FINAL_JSON_SUMMARY=...)
-        summary_obj = extract_final_json_summary(ansible_output)
-
-        if summary_obj:
-            failed = summary_obj.get("failed_hosts", []) or []
-            unreach = summary_obj.get("unreachable_hosts", []) or []
-            ok = bool(summary_obj.get("ok", False)) and result.returncode == 0 and (not failed) and (not unreach)
-
-            if ok:
-                summary = "✅ All hosts completed successfully."
-            else:
-                parts = []
-                if failed:
-                    parts.append("FAILED: {0}".format(", ".join(failed)))
-                if unreach:
-                    parts.append("UNREACHABLE: {0}".format(", ".join(unreach)))
-                if not parts:
-                    parts.append("See logs for details.")
-                summary = "⚠️ " + " | ".join(parts)
-        else:
-            # fallback (no JSON line) - don't invent hostnames
-            if result.returncode == 0:
-                summary = "✅ Completed (no summary line returned)."
-            else:
-                summary = "⚠️ Ansible returned non-zero exit code ({0}). Check logs.".format(result.returncode)
+        summary = build_summary(ansible_output, result.returncode)
 
         if result.returncode != 0:
             logging.warning("Ansible exit code {0}".format(result.returncode))
             logging.warning(ansible_output)
 
-        # Email admin + student
         send_email_notification(fullname, email, username, password, summary)
-        logging.info("Account creation finished for {0} ({1})".format(username, summary))
 
         return """
         <h2 style='font-family:sans-serif; color:#155724; text-align:center; margin-top:50px;'>
@@ -277,8 +288,5 @@ def index():
 
     return render_template("index.html")
 
-# ==============================
-# Start Flask app (debug off under gunicorn)
-# ==============================
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
