@@ -1,14 +1,38 @@
 ---
 - name: Add new user to Lambda servers
-  hosts: all
+  hosts: lambda
   become: true
+  gather_facts: false
 
   vars:
-    username: "{{ username }}"
-    full_name: "{{ full_name }}"
-    email: "{{ email }}"
-    password: "{{ password }}"
     group: students
+
+  pre_tasks:
+    - name: Validate web-form inputs
+      ansible.builtin.assert:
+        that:
+          - full_name is defined
+          - email is defined
+          - email | regex_search('@wit\.edu$')
+        fail_msg: "full_name and a valid @wit.edu email are required."
+
+    - name: Build username from email (sanitize)
+      ansible.builtin.set_fact:
+        username: >-
+          {{
+            (email.split('@')[0] | lower)
+            | regex_replace('[^a-z0-9._-]', '')
+          }}
+
+    - name: Generate a temporary password
+      ansible.builtin.set_fact:
+        temp_password: "{{ lookup('ansible.builtin.password', '/dev/null', length=20) }}"
+
+    - name: Fail if derived username is empty
+      ansible.builtin.assert:
+        that:
+          - username | length > 0
+        fail_msg: "Derived username from email is empty/invalid."
 
   tasks:
     - name: Ensure 'students' group exists
@@ -20,19 +44,16 @@
       ansible.builtin.user:
         name: "{{ username }}"
         shell: /bin/bash
-        create_home: yes
-        password: "{{ password | password_hash('sha512') }}"
+        create_home: true
         groups: "{{ group }}"
-        append: yes
-
-    - name: Set full name and email as comment
-      ansible.builtin.command:
-        cmd: "chfn -f '{{ full_name }} ({{ email }})' {{ username }}"
+        append: true
+        comment: "{{ full_name }} ({{ email }})"
+        password: "{{ temp_password | password_hash('sha512') }}"
 
     - name: Force password change on first login
       ansible.builtin.command:
         cmd: "chage -d 0 {{ username }}"
 
-    - name: Confirmation message
+    - name: Confirmation
       ansible.builtin.debug:
-        msg: "User {{ username }} created in group '{{ group }}' and must change password at first login."
+        msg: "Created {{ username }} ({{ email }}) and forced password change on first login."
