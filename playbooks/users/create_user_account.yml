@@ -2,6 +2,7 @@
 - name: Add new user to Lambda servers
   hosts: lambda
   become: true
+  gather_facts: false
 
   vars:
     group: students
@@ -15,7 +16,14 @@
           - email is defined
           - password is defined
           - (email | lower) is match('^[a-z0-9._%+-]+@wit\.edu$')
+          - (username | lower) is match('^[a-z0-9._-]+$')
         fail_msg: "Missing/invalid input. Flask must provide username, full_name, email, password and email must be @wit.edu."
+
+    # Hash on the CONTROLLER using passlib (controller only)
+    - name: Hash password for Linux user module
+      ansible.builtin.set_fact:
+        password_hash: "{{ password | password_hash('sha512') }}"
+      no_log: true
 
   tasks:
     - name: Ensure 'students' group exists
@@ -31,12 +39,12 @@
         comment: "{{ full_name }} ({{ email }})"
         groups: "{{ group }}"
         append: true
-        password: "{{ password | password_hash('sha512') }}"
-      no_log: true
+        password: "{{ password_hash }}"
 
     - name: Force password change on first login
       ansible.builtin.command: "chage -d 0 {{ username }}"
-      changed_when: true
+      register: chage_result
+      changed_when: chage_result.rc == 0
 
     - name: Confirmation message
       ansible.builtin.debug:
