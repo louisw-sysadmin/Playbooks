@@ -4,10 +4,6 @@
   become: true
 
   vars:
-    username: "{{ username }}"
-    full_name: "{{ full_name }}"
-    email: "{{ email }}"
-    password: "{{ password }}"
     group: students
 
   tasks:
@@ -20,18 +16,15 @@
       ansible.builtin.user:
         name: "{{ username }}"
         shell: /bin/bash
-        create_home: yes
+        create_home: true
+        comment: "{{ full_name }} ({{ email }})"
         password: "{{ password | password_hash('sha512') }}"
         groups: "{{ group }}"
-        append: yes
-
-    - name: Set full name and email as comment
-      ansible.builtin.command:
-        cmd: "chfn -f '{{ full_name }} ({{ email }})' {{ username }}"
+        append: true
 
     - name: Force password change on first login
-      ansible.builtin.command:
-        cmd: "chage -d 0 {{ username }}"
+      ansible.builtin.command: chage -d 0 {{ username }}
+      changed_when: true
 
     - name: Confirmation message
       ansible.builtin.debug:
