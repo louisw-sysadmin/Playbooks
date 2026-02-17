@@ -13,7 +13,7 @@
         that:
           - full_name is defined
           - email is defined
-          - email | regex_search('@wit\.edu$')
+          - (email | lower) is match('.*@wit\.edu$')
         fail_msg: "full_name and a valid @wit.edu email are required."
 
     - name: Build username from email (sanitize)
