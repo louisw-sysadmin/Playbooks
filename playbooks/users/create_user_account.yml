@@ -16,36 +16,28 @@
           - (email | lower) is match('^[a-z0-9._%+-]+@wit\.edu$')
         fail_msg: "Invalid input. Must provide full_name and a valid @wit.edu email."
 
-    - name: Derive username from email (part before @, sanitized)
+    # These two are created ONCE, then used everywhere
+    - name: Derive username (run once)
       ansible.builtin.set_fact:
-        derived_username: >-
+        username: >-
           {{
             (email | lower).split('@')[0]
             | regex_replace('[^a-z0-9._-]', '')
           }}
       run_once: true
-      delegate_to: localhost
+
+    - name: Generate ONE shared temporary password (run once)
+      ansible.builtin.set_fact:
+        temp_password: "{{ lookup('ansible.builtin.password', '/dev/null', length=20) }}"
+      run_once: true
+      no_log: true
 
     - name: Fail if derived username is empty
       ansible.builtin.assert:
         that:
-          - derived_username | length > 0
+          - username | length > 0
         fail_msg: "Derived username is empty after sanitizing email."
       run_once: true
-      delegate_to: localhost
-
-    - name: Generate ONE temporary password (same for all hosts)
-      ansible.builtin.set_fact:
-        temp_password: "{{ lookup('ansible.builtin.password', '/dev/null', length=20) }}"
-      run_once: true
-      delegate_to: localhost
-      no_log: true
-
-    - name: Share username/password facts to all hosts
-      ansible.builtin.set_fact:
-        username: "{{ hostvars['localhost']['derived_username'] }}"
-        temp_password: "{{ hostvars['localhost']['temp_password'] }}"
-      no_log: true
 
   tasks:
     - name: Ensure 'students' group exists
@@ -53,7 +45,7 @@
         name: "{{ group_name }}"
         state: present
 
-    - name: Create or update user (no passlib hashing here)
+    - name: Create or update user
       ansible.builtin.user:
         name: "{{ username }}"
         shell: /bin/bash
@@ -62,7 +54,7 @@
         append: true
         comment: "{{ full_name }} ({{ email }})"
 
-    - name: Set the same temporary password on every host (no passlib)
+    - name: Set the SAME temp password on every host (no passlib)
       ansible.builtin.shell: |
         echo '{{ username }}:{{ temp_password }}' | chpasswd
       args:
@@ -72,6 +64,6 @@
     - name: Force password change on first login
       ansible.builtin.command: "chage -d 0 {{ username }}"
 
-    - name: Summary (safe)
+    - name: Summary
       ansible.builtin.debug:
         msg: "Created/updated {{ username }} on {{ inventory_hostname }} (must change password at first login)."
