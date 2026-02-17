@@ -2,68 +2,30 @@
 - name: Add new user to Lambda servers
   hosts: lambda
   become: true
-  gather_facts: false
 
   vars:
-    group_name: students
-
-  pre_tasks:
-    - name: Validate web-form inputs
-      ansible.builtin.assert:
-        that:
-          - full_name is defined
-          - email is defined
-          - (email | lower) is match('^[a-z0-9._%+-]+@wit\.edu$')
-        fail_msg: "Invalid input. Must provide full_name and a valid @wit.edu email."
-
-    - name: Derive username from email (run once)
-      ansible.builtin.set_fact:
-        username: >-
-          {{
-            (email | lower).split('@')[0]
-            | regex_replace('[^a-z0-9._-]', '')
-          }}
-      run_once: true
-
-    # If Flask passes password, use it. Otherwise generate one shared password.
-    - name: Generate ONE shared temp password if not provided (run once)
-      ansible.builtin.set_fact:
-        temp_password: "{{ temp_password | default(lookup('ansible.builtin.password', '/dev/null', length=12, chars='ascii_letters,digits')) }}"
-      run_once: true
-      no_log: true
-
-    - name: Fail if derived username is empty (run once)
-      ansible.builtin.assert:
-        that:
-          - username | length > 0
-        fail_msg: "Derived username is empty after sanitizing email."
-      run_once: true
+    group: students
 
   tasks:
     - name: Ensure 'students' group exists
       ansible.builtin.group:
-        name: "{{ group_name }}"
+        name: "{{ group }}"
         state: present
 
-    - name: Create or update user
+    - name: Create or update user account
       ansible.builtin.user:
         name: "{{ username }}"
         shell: /bin/bash
         create_home: true
-        groups: "{{ group_name }}"
-        append: true
         comment: "{{ full_name }} ({{ email }})"
-
-    - name: Set SAME temp password on every host (no passlib)
-      ansible.builtin.shell: |
-        printf '%s:%s\n' '{{ username }}' '{{ temp_password }}' | chpasswd
-      args:
-        executable: /bin/bash
-      no_log: true
+        password: "{{ password | password_hash('sha512') }}"
+        groups: "{{ group }}"
+        append: true
 
     - name: Force password change on first login
-      ansible.builtin.command: "chage -d 0 {{ username }}"
+      ansible.builtin.command: chage -d 0 {{ username }}
+      changed_when: true
 
-    - name: Summary
+    - name: Confirmation message
       ansible.builtin.debug:
-        msg: "Created/updated {{ username }} on {{ inventory_hostname }} (must change password at first login)."
+        msg: "User {{ username }} created in group '{{ group }}' and must change password at first login."
