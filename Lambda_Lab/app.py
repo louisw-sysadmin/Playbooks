@@ -20,7 +20,7 @@ LOG_DIR        = "/var/log/lambda_ansible_runs"
 # Email via local postfix
 SENDMAIL_PATH  = "/usr/sbin/sendmail"
 FROM_EMAIL     = os.getenv("LAMBDA_FROM_EMAIL", "Lambda GPU Labs <no-reply@cs.wit.edu>")
-ADMIN_COPY_EMAIL = os.getenv("LAMBDA_ADMIN_EMAIL", "")  # optional Bcc
+ADMIN_COPY_EMAIL = os.getenv("LAMBDA_ADMIN_EMAIL", "louisw@wit.edu")  # optional Bcc
 
 
 def generate_username(full_name: str) -> str:
