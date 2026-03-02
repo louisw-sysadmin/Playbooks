@@ -1,109 +1,144 @@
-# /home/sysadmin/Playbooks/Lambda_Lab/app.py
-# API-only Flask app for Lambda GPU Labs account creation
-# - Static HTML stays in Nginx (/var/www/lambda_lab)
-# - Flask exposes /health + /api/create
-# - Ansible is HARD-LIMITED to the "lambda" group so it never touches sc/debug/reinhart
-
-from flask import Flask, request, jsonify
 import os
+import re
+import secrets
+import string
 import subprocess
 import logging
 from datetime import datetime
-import secrets
-import re
+from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
 # ====== CONFIG ======
-INVENTORY_PATH = "/etc/ansible/hosts"
-PLAYBOOK_PATH = "/home/sysadmin/Playbooks/playbooks/users/create_user_account.yml"
-LIMIT_GROUP = "lambda"
+ANSIBLE_PLAYBOOK = "/home/sysadmin/Playbooks/Lambda_Lab/create_user_account.yml"
+ANSIBLE_INVENTORY = "/home/sysadmin/Playbooks/Lambda_Lab/inventory"
+LOG_DIR = "/home/sysadmin/Playbooks/Lambda_Lab/logs"
 
-ANSIBLE_RUN_DIR = "/var/log/lambda_ansible_runs"
-os.makedirs(ANSIBLE_RUN_DIR, exist_ok=True)
+SENDMAIL_PATH = "/usr/sbin/sendmail"
+FROM_EMAIL = os.getenv("LAMBDA_FROM_EMAIL", "Lambda GPU Labs <no-reply@cs.wit.edu>")
+ADMIN_COPY_EMAIL = os.getenv("LAMBDA_ADMIN_EMAIL", "")  # optional Bcc
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+os.makedirs(LOG_DIR, exist_ok=True)
+
+logging.basicConfig(level=logging.INFO)
 
 
 # ====== HELPERS ======
-def email_to_username(email: str) -> str:
-    # take left side of email and normalize
-    user = email.split("@", 1)[0].strip().lower()
-    # allow only safe linux username chars: a-z, 0-9, underscore, dash
-    user = re.sub(r"[^a-z0-9_-]", "", user)
-    # linux username max length is typically 32; keep it safe
-    return user[:32]
+
+def generate_username(full_name: str) -> str:
+    clean = re.sub(r"[^a-zA-Z ]", "", full_name).strip().lower()
+    parts = clean.split()
+    if len(parts) < 2:
+        raise ValueError("Full name must include first and last name")
+    return (parts[0][0] + parts[-1])[:16]
 
 
-def run_ansible_create(username: str, full_name: str, email: str, password: str) -> tuple[int, str, str]:
-    """
-    Runs the user creation playbook, limited to the lambda group only.
-    Returns: (returncode, logfile_path, cmd_string)
-    """
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    logfile = os.path.join(ANSIBLE_RUN_DIR, f"{username}_{ts}.log")
+def generate_password(length: int = 14) -> str:
+    alphabet = string.ascii_letters + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(length))
 
-    extra_vars = {
-        "username": username,
-        "full_name": full_name,
-        "email": email,
-        "password": password,
-    }
 
+def run_ansible(username: str, password: str, logfile: str):
     cmd = [
         "ansible-playbook",
-        "-i", INVENTORY_PATH,
-        PLAYBOOK_PATH,
-        "--limit", LIMIT_GROUP,          # ✅ hard safety gate: ONLY lambda hosts
-        "--extra-vars", str(extra_vars).replace("'", '"'),
+        "-i", ANSIBLE_INVENTORY,
+        ANSIBLE_PLAYBOOK,
+        "-e", f"username={username}",
+        "-e", f"user_password={password}",
     ]
 
-    cmd_str = " ".join(cmd)
-    logging.info("Running: %s", cmd_str)
+    with open(logfile, "w") as lf:
+        proc = subprocess.run(cmd, stdout=lf, stderr=lf)
 
-    with open(logfile, "w", encoding="utf-8") as f:
-        proc = subprocess.run(cmd, stdout=f, stderr=subprocess.STDOUT, text=True)
+    return proc.returncode
 
-    return proc.returncode, logfile, cmd_str
+
+def send_credentials_email(to_email: str, full_name: str, username: str, password: str):
+    if not os.path.exists(SENDMAIL_PATH):
+        raise RuntimeError("sendmail not found")
+
+    subject = "Lambda GPU Labs account credentials"
+
+    body = (
+        f"Hi {full_name},\n\n"
+        "Your Lambda GPU Labs account has been created.\n\n"
+        f"Username: {username}\n"
+        f"Temporary password: {password}\n\n"
+        "You will be required to change your password on first login.\n\n"
+        "--\n"
+        "Lambda GPU Labs\n"
+    )
+
+    headers = [
+        f"From: {FROM_EMAIL}",
+        f"To: {to_email}",
+        f"Subject: {subject}",
+    ]
+
+    if ADMIN_COPY_EMAIL:
+        headers.append(f"Bcc: {ADMIN_COPY_EMAIL}")
+
+    headers.append("")  # separates headers from body
+
+    msg = "\n".join(headers) + "\n" + body + "\n"
+
+    proc = subprocess.run(
+        [SENDMAIL_PATH, "-t", "-oi"],
+        input=msg,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+    if proc.returncode != 0:
+        raise RuntimeError(proc.stderr.strip())
 
 
 # ====== ROUTES ======
-@app.get("/health")
+
+@app.route("/health")
 def health():
-    return jsonify({"status": "ok"}), 200
+    return "ok", 200
 
 
-@app.post("/api/create")
+@app.route("/api/create", methods=["POST"])
 def api_create():
-    full_name = (request.form.get("fullname") or "").strip()
-    email = (request.form.get("email") or "").strip().lower()
+    full_name = request.form.get("fullname", "").strip()
+    email = request.form.get("email", "").strip().lower()
 
     if not full_name or not email:
-        return jsonify({"status": "error", "message": "fullname and email are required"}), 400
+        return jsonify({"error": "fullname and email are required"}), 400
 
-    if not email.endswith("@wit.edu"):
-        return jsonify({"status": "error", "message": "WIT email required (@wit.edu)"}), 400
+    try:
+        username = generate_username(full_name)
+        password = generate_password()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 
-    username = email_to_username(email)
-    if not username:
-        return jsonify({"status": "error", "message": "Could not derive a valid username from email"}), 400
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    logfile = os.path.join(LOG_DIR, f"{username}_{timestamp}.log")
 
-    # Generate a temp password (user will be forced to change on first login by your playbook)
-    password = secrets.token_urlsafe(12)
-
-    rc, logfile, cmd_str = run_ansible_create(username, full_name, email, password)
+    rc = run_ansible(username, password, logfile)
 
     if rc != 0:
         return jsonify({
-            "status": "error",
-            "message": "ansible-playbook failed",
-            "returncode": rc,
-            "logfile": logfile,
-            "cmd": cmd_str
+            "error": "Account creation failed",
+            "logfile": logfile
         }), 500
 
-    # If you already email credentials elsewhere, keep doing it there.
-    # This API just returns success + logfile location.
+    # Try sending email (do not fail account if email fails)
+    try:
+        send_credentials_email(email, full_name, username, password)
+    except Exception as e:
+        logging.exception("Email send failed: %s", e)
+        return jsonify({
+            "status": "ok",
+            "username": username,
+            "logfile": logfile,
+            "email_warning": "Account created but email failed"
+        }), 200
+
     return jsonify({
         "status": "ok",
         "username": username,
@@ -112,5 +147,4 @@ def api_create():
 
 
 if __name__ == "__main__":
-    # for local debugging only; systemd runs gunicorn
-    app.run(host="127.0.0.1", port=5000, debug=False)
+    app.run(host="127.0.0.1", port=5000)
