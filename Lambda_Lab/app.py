@@ -10,24 +10,19 @@ from flask import Flask, request, jsonify
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
-# ====== PATHS / SETTINGS (YOUR VALUES) ======
+# ====== PATHS / SETTINGS ======
 INVENTORY_PATH = "/etc/ansible/hosts"
 PLAYBOOK_PATH  = "/home/sysadmin/Playbooks/playbooks/users/create_user_account.yml"
-
-# Force target group here
-TARGET_GROUP   = "lambda"
 LIMIT_GROUP    = "lambda"
 
-# Log files go here
 LOG_DIR        = "/var/log/lambda_ansible_runs"
 
 # Email via local postfix
 SENDMAIL_PATH  = "/usr/sbin/sendmail"
 FROM_EMAIL     = os.getenv("LAMBDA_FROM_EMAIL", "Lambda GPU Labs <no-reply@cs.wit.edu>")
-ADMIN_COPY_EMAIL = os.getenv("LAMBDA_ADMIN_EMAIL", "louisw@wit.edu")  # optional Bcc
+ADMIN_COPY_EMAIL = os.getenv("LAMBDA_ADMIN_EMAIL", "")  # optional Bcc
 
 
-# ====== HELPERS ======
 def generate_username(full_name: str) -> str:
     clean = re.sub(r"[^a-zA-Z ]", "", full_name).strip().lower()
     parts = clean.split()
@@ -45,14 +40,16 @@ def ensure_log_dir() -> None:
     os.makedirs(LOG_DIR, exist_ok=True)
 
 
-def run_ansible(username: str, password: str, logfile: str) -> int:
+def run_ansible(username: str, full_name: str, email: str, password: str, logfile: str) -> int:
     cmd = [
         "ansible-playbook",
         "-i", INVENTORY_PATH,
         PLAYBOOK_PATH,
-        "-l", LIMIT_GROUP,                    # force lambda group only
-        "-e", f"username={username}",
-        "-e", f"user_password={password}",
+        "-l", LIMIT_GROUP,
+        "-e", "username={0}".format(username),
+        "-e", "full_name={0}".format(full_name),
+        "-e", "email={0}".format(email),
+        "-e", "password={0}".format(password),
     ]
 
     with open(logfile, "w") as lf:
@@ -101,7 +98,6 @@ def send_credentials_email(to_email: str, full_name: str, username: str, passwor
         raise RuntimeError("sendmail failed: {0}".format(proc.stderr.strip()))
 
 
-# ====== ROUTES ======
 @app.route("/health")
 def health():
     return "ok", 200
@@ -115,13 +111,16 @@ def api_create():
     if not full_name or not email:
         return jsonify({"error": "fullname and email are required"}), 400
 
+    # If your playbook enforces @wit.edu, enforce it here too so users get a clean message
+    if not email.endswith("@wit.edu"):
+        return jsonify({"error": "Email must be @wit.edu"}), 400
+
     try:
         username = generate_username(full_name)
         password = generate_password()
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
-    # ensure log dir exists
     try:
         ensure_log_dir()
     except Exception as e:
@@ -130,12 +129,11 @@ def api_create():
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     logfile = os.path.join(LOG_DIR, "{0}_{1}.log".format(username, ts))
 
-    rc = run_ansible(username, password, logfile)
+    rc = run_ansible(username, full_name, email, password, logfile)
     if rc != 0:
-        # account creation failed; logfile contains the exact reason
         return jsonify({"error": "Account creation failed", "logfile": logfile}), 500
 
-    # send email (do not fail account if email fails)
+    # Send email (don’t fail account creation if email fails)
     try:
         send_credentials_email(email, full_name, username, password)
     except Exception as e:
