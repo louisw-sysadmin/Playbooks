@@ -8,23 +8,26 @@ from datetime import datetime
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
-
-# ====== CONFIG ======
-ANSIBLE_PLAYBOOK = "/home/sysadmin/Playbooks/Lambda_Lab/create_user_account.yml"
-ANSIBLE_INVENTORY = "/home/sysadmin/Playbooks/Lambda_Lab/inventory"
-LOG_DIR = "/home/sysadmin/Playbooks/Lambda_Lab/logs"
-
-SENDMAIL_PATH = "/usr/sbin/sendmail"
-FROM_EMAIL = os.getenv("LAMBDA_FROM_EMAIL", "Lambda GPU Labs <no-reply@cs.wit.edu>")
-ADMIN_COPY_EMAIL = os.getenv("LAMBDA_ADMIN_EMAIL", "")  # optional Bcc
-
-os.makedirs(LOG_DIR, exist_ok=True)
-
 logging.basicConfig(level=logging.INFO)
+
+# ====== PATHS / SETTINGS (YOUR VALUES) ======
+INVENTORY_PATH = "/etc/ansible/hosts"
+PLAYBOOK_PATH  = "/home/sysadmin/Playbooks/playbooks/users/create_user_account.yml"
+
+# Force target group here
+TARGET_GROUP   = "lambda"
+LIMIT_GROUP    = "lambda"
+
+# Log files go here
+LOG_DIR        = "/var/log/lambda_ansible_runs"
+
+# Email via local postfix
+SENDMAIL_PATH  = "/usr/sbin/sendmail"
+FROM_EMAIL     = os.getenv("LAMBDA_FROM_EMAIL", "Lambda GPU Labs <no-reply@cs.wit.edu>")
+ADMIN_COPY_EMAIL = os.getenv("LAMBDA_ADMIN_EMAIL", "louisw@wit.edu")  # optional Bcc
 
 
 # ====== HELPERS ======
-
 def generate_username(full_name: str) -> str:
     clean = re.sub(r"[^a-zA-Z ]", "", full_name).strip().lower()
     parts = clean.split()
@@ -38,47 +41,51 @@ def generate_password(length: int = 14) -> str:
     return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
-def run_ansible(username: str, password: str, logfile: str):
+def ensure_log_dir() -> None:
+    os.makedirs(LOG_DIR, exist_ok=True)
+
+
+def run_ansible(username: str, password: str, logfile: str) -> int:
     cmd = [
         "ansible-playbook",
-        "-i", ANSIBLE_INVENTORY,
-        ANSIBLE_PLAYBOOK,
+        "-i", INVENTORY_PATH,
+        PLAYBOOK_PATH,
+        "-l", LIMIT_GROUP,                    # force lambda group only
         "-e", f"username={username}",
         "-e", f"user_password={password}",
     ]
 
     with open(logfile, "w") as lf:
+        lf.write("COMMAND:\n{0}\n\n".format(" ".join(cmd)))
+        lf.flush()
         proc = subprocess.run(cmd, stdout=lf, stderr=lf)
 
     return proc.returncode
 
 
-def send_credentials_email(to_email: str, full_name: str, username: str, password: str):
+def send_credentials_email(to_email: str, full_name: str, username: str, password: str) -> None:
     if not os.path.exists(SENDMAIL_PATH):
-        raise RuntimeError("sendmail not found")
+        raise RuntimeError("sendmail not found at {0}".format(SENDMAIL_PATH))
 
     subject = "Lambda GPU Labs account credentials"
-
     body = (
-        f"Hi {full_name},\n\n"
+        "Hi {0},\n\n"
         "Your Lambda GPU Labs account has been created.\n\n"
-        f"Username: {username}\n"
-        f"Temporary password: {password}\n\n"
+        "Username: {1}\n"
+        "Temporary password: {2}\n\n"
         "You will be required to change your password on first login.\n\n"
         "--\n"
         "Lambda GPU Labs\n"
-    )
+    ).format(full_name, username, password)
 
     headers = [
-        f"From: {FROM_EMAIL}",
-        f"To: {to_email}",
-        f"Subject: {subject}",
+        "From: {0}".format(FROM_EMAIL),
+        "To: {0}".format(to_email),
+        "Subject: {0}".format(subject),
     ]
-
     if ADMIN_COPY_EMAIL:
-        headers.append(f"Bcc: {ADMIN_COPY_EMAIL}")
-
-    headers.append("")  # separates headers from body
+        headers.append("Bcc: {0}".format(ADMIN_COPY_EMAIL))
+    headers.append("")
 
     msg = "\n".join(headers) + "\n" + body + "\n"
 
@@ -90,13 +97,11 @@ def send_credentials_email(to_email: str, full_name: str, username: str, passwor
         stderr=subprocess.PIPE,
         check=False,
     )
-
     if proc.returncode != 0:
-        raise RuntimeError(proc.stderr.strip())
+        raise RuntimeError("sendmail failed: {0}".format(proc.stderr.strip()))
 
 
 # ====== ROUTES ======
-
 @app.route("/health")
 def health():
     return "ok", 200
@@ -116,18 +121,21 @@ def api_create():
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    logfile = os.path.join(LOG_DIR, f"{username}_{timestamp}.log")
+    # ensure log dir exists
+    try:
+        ensure_log_dir()
+    except Exception as e:
+        return jsonify({"error": "Cannot create log dir: {0}".format(e)}), 500
+
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    logfile = os.path.join(LOG_DIR, "{0}_{1}.log".format(username, ts))
 
     rc = run_ansible(username, password, logfile)
-
     if rc != 0:
-        return jsonify({
-            "error": "Account creation failed",
-            "logfile": logfile
-        }), 500
+        # account creation failed; logfile contains the exact reason
+        return jsonify({"error": "Account creation failed", "logfile": logfile}), 500
 
-    # Try sending email (do not fail account if email fails)
+    # send email (do not fail account if email fails)
     try:
         send_credentials_email(email, full_name, username, password)
     except Exception as e:
@@ -139,11 +147,7 @@ def api_create():
             "email_warning": "Account created but email failed"
         }), 200
 
-    return jsonify({
-        "status": "ok",
-        "username": username,
-        "logfile": logfile
-    }), 200
+    return jsonify({"status": "ok", "username": username, "logfile": logfile}), 200
 
 
 if __name__ == "__main__":
