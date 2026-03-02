@@ -2,6 +2,12 @@
 users_to_remove:
   # base usernames (from your lambda07/lambda10 lists)
   - wuj
+  - testuser
+  - test
+  - wlouis
+  - jeantyn
+  - jsamirah
+  - lambdaonly01
   - wittm
   - wilsonh
   - vitielloa
