@@ -1,7 +1,6 @@
 ---
-
 - name: Update all Lambda Machines
-  hosts: lambda
+  hosts: all
   become: yes  # This is necessary for privilege escalation (e.g., sudo)
   tasks:
     - name: update all packages to the latest version
@@ -16,3 +15,13 @@
       ansible.builtin.apt:
         autoremove: yes
         autoclean: yes
+    - name: Reboot the machine
+      ansible.builtin.reboot:
+        msg: "Rebooting after system update"
+        reboot_timeout: 600       # Wait up to 5 minutes for reboot to complete
+        pre_reboot_delay: 5       # Wait 5 seconds before initiating reboot
+        post_reboot_delay: 60     # Wait 30 seconds after reboot before checking
+        test_command: uptime      # Command to verify host is back online
+    - name: Print a success message for reboot
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} has been successfully rebooted"
