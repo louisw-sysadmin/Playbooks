@@ -1,6 +1,6 @@
 ---
 - name: Remove listed users safely
-  hosts: all
+  hosts: lambda
   become: true
   gather_facts: false
 
