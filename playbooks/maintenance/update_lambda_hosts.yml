@@ -1,6 +1,6 @@
 ---
 - name: Update all Lambda Machines
-  hosts: all
+  hosts: lambda
   become: yes  # This is necessary for privilege escalation (e.g., sudo)
   tasks:
     - name: update all packages to the latest version
