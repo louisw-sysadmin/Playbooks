@@ -1,0 +1,6 @@
+snmp_location: "Lambda Lab"
+snmp_contact: "louisw@wit.edu"
+diode_ip: "10.64.0.123"
+snmp_auth_password: "netboxdiode"
+snmp_priv_password: "netboxdiode12"
+snmp_user: "snmpagent"

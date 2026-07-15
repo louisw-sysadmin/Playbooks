@@ -1,0 +1,77 @@
+---
+- name: Install SNMPv3
+  hosts: lambda
+  become: true
+
+  vars_files:
+    - vars-install-snmp.yaml
+
+  handlers:
+    - name: restart snmpd
+      systemd:
+        name: snmpd
+        state: restarted
+
+  pre_tasks:
+
+    - name: Update apt cache
+      apt:
+        update_cache: true
+
+    - name: Upgrade packages
+      apt:
+        upgrade: dist
+
+  tasks:
+
+    - name: Install NET-SNMP packages
+      apt:
+        name:
+          - snmpd
+          - snmp
+          - snmp-mibs-downloader
+        state: present
+
+
+    - name: Stop snmpd before creating SNMPv3 user
+      systemd:
+        name: snmpd
+        state: stopped
+      ignore_errors: true
+
+
+    - name: Check if SNMPv3 user exists
+      shell: grep -q "{{ snmp_user }}" /var/lib/snmp/snmpd.conf
+      register: snmp_user_check
+      failed_when: false
+      changed_when: false
+
+
+    - name: Create SNMPv3 user
+      command: >
+        net-snmp-create-v3-user
+        -ro
+        -A "{{ snmp_auth_password }}"
+        -X "{{ snmp_priv_password }}"
+        -a SHA
+        -x AES
+        "{{ snmp_user }}"
+      when: snmp_user_check.rc != 0
+
+
+    - name: Deploy SNMP daemon configuration
+      template:
+        src: templates/snmpd.conf.j2
+        dest: /etc/snmp/snmpd.conf
+        owner: root
+        group: root
+        mode: '0600'
+      notify:
+        - restart snmpd
+
+
+    - name: Enable and start SNMP service
+      systemd:
+        name: snmpd
+        enabled: true
+        state: started
