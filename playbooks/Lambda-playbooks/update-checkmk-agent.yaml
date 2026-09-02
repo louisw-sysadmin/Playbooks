@@ -1,0 +1,16 @@
+---
+- name: Update checkmk agent
+  become: true
+  hosts: lambda
+  tasks:
+    - name: Download package
+      get_url:
+        url: http://10.64.0.156/monitoring/check_mk/agents/check-mk-agent_2.5.0p7-1_all.deb
+        dest: /home/sysadmin
+        mode: '0711'
+
+
+    - name: Install Package
+      apt:
+        deb: /home/sysadmin/check-mk-agent_2.5.0p7-1_all.deb
+        state: present

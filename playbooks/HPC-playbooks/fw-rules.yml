@@ -1,0 +1,64 @@
+---
+- name: Setup FW Rules
+  hosts: SuperComputer
+  become: true
+
+  tasks:
+    - name: Disable UFW
+      ufw:
+        state: disabled
+
+    - name: Allow ssh
+      ufw:
+        rule: allow
+        port: ssh
+        proto: tcp
+
+    - name: Allow RPCbind NFS
+      ufw:
+        rule: allow
+        port: '111'
+
+    - name: Allow NFS Daemon
+      ufw:
+        rule: allow
+        port: '2049'
+        proto: tcp
+
+    - name: Allow Slurm Connections
+      ufw:
+        rule: allow
+        port: '6817:6819'
+        proto: tcp
+        src: 10.96.0.0/24
+
+    - name: Allow Checkmk Agent
+      ufw:
+        rule: allow
+        port: '6556'
+        proto: tcp
+
+    - name: Allow Ephemeral port range RPC/NFS (tcp)
+      ufw:
+        rule: allow
+        port: '32768:60999'
+        proto: tcp
+        src: 10.96.0.0/24
+
+    - name: Allow Ephemeral port range RPC/NFS (udp)
+      ufw:
+        rule: allow
+        port: '32768:60999'
+        proto: udp
+        src: 10.96.0.0/24
+
+    - name: Enable logging
+      ufw:
+        logging: 'medium'
+
+    - name: Enable UFW with Default deny
+      ufw:
+        state: enabled
+        policy: deny
+        direction: incoming
+        comment: Implicit deny

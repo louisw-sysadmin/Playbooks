@@ -1,0 +1,99 @@
+---
+# upgrade_gpu_driver.yml
+#
+# Installs the nvidia driver via apt (not the .run installer) — this
+# avoids the live kernel-module-unload problem entirely, because the
+# DKMS postinst hook builds the module for the *target* kernel via a
+# trigger, rather than needing to unload what's currently running.
+#
+# Usage:
+#   ansible-playbook upgrade_gpu_driver.yml --limit lambda1
+#   ansible-playbook upgrade_gpu_driver.yml -e "driver_package=nvidia-driver-580"
+#
+# What it does, per host:
+#   1. Installs the specified nvidia driver package (pulls in matching
+#      nvidia-dkms-* automatically as a dependency).
+#   2. Releases the hold on the previously-blocked kernel packages.
+#   3. Runs dist-upgrade so the kernel installs and DKMS rebuilds the
+#      nvidia module against it during the same run.
+#   4. Verifies the DKMS module actually built successfully.
+#   5. Reports whether a reboot is needed (it will be, for the new
+#      kernel + driver to actually load) — does NOT auto-reboot.
+#
+# Reboot is left as a separate, deliberate step so you can control
+# timing/order across the fleet (e.g. rolling, off-peak).
+
+- name: Upgrade nvidia driver and bring in held kernel
+  hosts: lambda  # validate on one host first; widen to the rest after
+  become: yes
+
+  vars:
+    driver_package: "nvidia-driver-595"  # override with -e driver_package=...
+    held_kernel_packages:
+      - linux-image-generic-hwe-24.04
+      - linux-headers-generic-hwe-24.04
+      - linux-generic-hwe-24.04
+      - linux-image-7.0.0-28-generic
+      - linux-headers-7.0.0-28-generic
+
+  tasks:
+    - name: Refresh apt cache
+      apt:
+        update_cache: yes
+
+    - name: Show driver package that will be installed
+      debug:
+        msg: "Installing {{ driver_package }} on {{ inventory_hostname }}"
+
+    - name: Install the target nvidia driver package
+      apt:
+        name: "{{ driver_package }}"
+        state: latest
+      register: driver_install
+
+    - name: Release hold on kernel packages so they can install now
+      dpkg_selections:
+        name: "{{ item }}"
+        selection: install
+      loop: "{{ held_kernel_packages }}"
+
+    - name: Recover dpkg from any lingering broken state first
+      command: dpkg --configure -a
+      register: dpkg_fix
+      changed_when: "'Setting up' in dpkg_fix.stdout"
+      failed_when: false
+
+    - name: Dist-upgrade to bring in the kernel and rebuild DKMS against it
+      apt:
+        upgrade: dist
+        update_cache: yes
+      register: apt_result
+
+    - name: Check DKMS status for the nvidia module
+      command: dkms status
+      register: dkms_status
+      changed_when: false
+
+    - name: Show DKMS status
+      debug:
+        msg: "{{ dkms_status.stdout_lines }}"
+
+    - name: Fail loudly if nvidia DKMS module did not build successfully
+      fail:
+        msg: >-
+          nvidia DKMS module does not show as installed for the new kernel
+          on {{ inventory_hostname }}. Check
+          /var/lib/dkms/nvidia/*/build/make.log before rebooting this host.
+      when: "'installed' not in dkms_status.stdout"
+
+    - name: Check if a reboot is required
+      stat:
+        path: /var/run/reboot-required
+      register: reboot_required_file
+
+    - name: Report reboot status
+      debug:
+        msg: >-
+          {{ inventory_hostname }}: reboot required =
+          {{ reboot_required_file.stat.exists }}.
+          New kernel/driver will not be active until reboot.

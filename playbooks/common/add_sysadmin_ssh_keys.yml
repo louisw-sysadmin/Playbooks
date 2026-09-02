@@ -1,6 +1,6 @@
 ---
 - name: Push SSH key to lambda hosts
-  hosts: SuperComputer
+  hosts: lambda
   gather_facts: no
   vars:
     ansible_user: sysadmin   # adjust if remote user differs

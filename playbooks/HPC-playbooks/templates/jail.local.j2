@@ -1,0 +1,13 @@
+[DEFAULT]
+bantime = 10m
+findtime = 10m
+maxretry = 3
+bantime.increment = true
+bantime.factor= 3
+ignoreip = 10.19.30.1/24 10.220.96.1/20 10.220.0.0/16
+
+# The ignore ip is for both the wired lan and the wifi of the school and the last one is a catch all if i missed a subnet in the school
+[sshd]
+enabled = true
+backend = systemd
+

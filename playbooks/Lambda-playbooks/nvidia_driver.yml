@@ -1,0 +1,181 @@
+---
+# install_nvidia_run_driver.yml
+#
+# Installs NVIDIA driver 595.84 via the official .run installer,
+# replacing the apt-managed nvidia-driver-570 package. Also releases
+# the hold on kernel 7.0.0-28-generic and brings it in, then rebuilds
+# the DKMS module against it using this new driver.
+#
+# IMPORTANT: test on a single host first, e.g.:
+#   ansible-playbook install_nvidia_run_driver.yml --limit lambda1
+#
+# Assumes secure boot MOK keys already exist at:
+#   /var/lib/shim-signed/mok/MOK.priv
+#   /var/lib/shim-signed/mok/MOK.der
+# (confirmed present from prior dkms sign attempts in these hosts' logs)
+
+- name: Install NVIDIA driver via .run installer
+  hosts: lambda1  # start with one host; widen after validating
+  become: yes
+
+  vars:
+    nvidia_run_url: "https://in.download.nvidia.com/XFree86/Linux-x86_64/595.84/NVIDIA-Linux-x86_64-595.84.run"
+    nvidia_run_local: "/tmp/NVIDIA-Linux-x86_64-595.84.run"
+    # Optional: set this if you have a known-good sha256 from NVIDIA's site.
+    # Leave empty string to skip checksum verification (not recommended).
+    nvidia_run_sha256: ""
+    mok_priv_key: "/var/lib/shim-signed/mok/MOK.priv"
+    mok_pub_cert: "/var/lib/shim-signed/mok/MOK.der"
+    held_kernel_packages:
+      - linux-image-generic-hwe-24.04
+      - linux-headers-generic-hwe-24.04
+      - linux-generic-hwe-24.04
+      - linux-image-7.0.0-28-generic
+      - linux-headers-7.0.0-28-generic
+
+  tasks:
+    - name: Confirm MOK signing keys exist on this host
+      stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ mok_priv_key }}"
+        - "{{ mok_pub_cert }}"
+      register: mok_check
+
+    - name: Fail if MOK keys are missing (secure boot signing would break)
+      fail:
+        msg: >-
+          MOK signing key/cert not found at {{ item.item }}. Installing an
+          unsigned module will fail to load under secure boot. Resolve
+          before proceeding.
+      loop: "{{ mok_check.results }}"
+      when: not item.stat.exists
+
+    - name: Ensure build tools and kernel headers are present
+      apt:
+        name:
+          - build-essential
+          - dkms
+          - "linux-headers-{{ ansible_kernel }}"
+        state: present
+        update_cache: yes
+
+    - name: Download the NVIDIA .run installer
+      get_url:
+        url: "{{ nvidia_run_url }}"
+        dest: "{{ nvidia_run_local }}"
+        mode: '0755'
+        checksum: "{{ ('sha256:' ~ nvidia_run_sha256) if nvidia_run_sha256 else omit }}"
+
+    - name: Purge the apt-managed nvidia driver to avoid conflicts
+      apt:
+        name:
+          - "nvidia-driver-570*"
+          - "nvidia-dkms-570*"
+        state: absent
+        purge: yes
+        autoremove: yes
+
+    - name: Check whether the nouveau driver is loaded
+      command: lsmod
+      register: lsmod_out
+      changed_when: false
+
+    - name: Fail if nouveau is loaded (must be disabled before install)
+      fail:
+        msg: >-
+          nouveau kernel module is loaded on {{ inventory_hostname }}.
+          Per NVIDIA's docs, blacklist it (e.g. via
+          /etc/modprobe.d/blacklist-nouveau.conf with
+          'blacklist nouveau' and 'options nouveau modeset=0'),
+          rebuild initramfs, and reboot before running this installer.
+      when: "'nouveau' in lsmod_out.stdout"
+
+    - name: Check for processes holding open the nvidia device nodes
+      shell: fuser -v /dev/nvidia* 2>&1 || true
+      register: nvidia_fuser
+      changed_when: false
+
+    - name: Report any processes still using nvidia devices
+      debug:
+        msg: "{{ nvidia_fuser.stdout_lines }}"
+      when: nvidia_fuser.stdout | length > 0
+
+    - name: Release hold on kernel packages so the new kernel can install
+      dpkg_selections:
+        name: "{{ item }}"
+        selection: install
+      loop: "{{ held_kernel_packages }}"
+
+    - name: Recover dpkg from any lingering broken state
+      command: dpkg --configure -a
+      register: dpkg_fix
+      changed_when: "'Setting up' in dpkg_fix.stdout"
+      failed_when: false
+
+    - name: Dist-upgrade to bring in the held kernel packages
+      apt:
+        upgrade: dist
+        update_cache: yes
+      register: apt_result
+
+    - name: Run the NVIDIA .run installer silently with DKMS + MOK signing
+      # -s is the documented silent/non-interactive flag. --dkms registers
+      # the module with DKMS so future kernel updates rebuild it
+      # automatically. --ui=none skips the ncurses UI entirely.
+      command: >
+        sh {{ nvidia_run_local }}
+        -s
+        --dkms
+        --ui=none
+        --module-signing-secret-key={{ mok_priv_key }}
+        --module-signing-public-key={{ mok_pub_cert }}
+        --kernel-name=7.0.0-28-generic
+      register: nvidia_install
+      changed_when: true
+      failed_when: false
+
+    - name: Show installer log tail if it failed
+      command: tail -n 80 /var/log/nvidia-installer.log
+      register: installer_log
+      when: nvidia_install.rc != 0
+      changed_when: false
+
+    - name: Report installer log on failure
+      debug:
+        msg: "{{ installer_log.stdout_lines }}"
+      when: nvidia_install.rc != 0
+
+    - name: Fail the play if the installer did not exit cleanly
+      fail:
+        msg: "NVIDIA .run installer failed on {{ inventory_hostname }}, see log above."
+      when: nvidia_install.rc != 0
+
+    - name: Check DKMS status for the nvidia module
+      command: dkms status
+      register: dkms_status
+      changed_when: false
+
+    - name: Show DKMS status
+      debug:
+        msg: "{{ dkms_status.stdout_lines }}"
+
+    - name: Fail if DKMS module is not built/installed for the new kernel
+      fail:
+        msg: >-
+          nvidia DKMS module not showing as installed for 7.0.0-28-generic
+          on {{ inventory_hostname }}. Check
+          /var/lib/dkms/nvidia/*/build/make.log before rebooting.
+      when: "'installed' not in dkms_status.stdout"
+
+    - name: Check if a reboot is required
+      stat:
+        path: /var/run/reboot-required
+      register: reboot_required_file
+
+    - name: Report reboot status
+      debug:
+        msg: >-
+          {{ inventory_hostname }}: reboot required =
+          {{ reboot_required_file.stat.exists }}.
+          New kernel/driver will not be active until reboot.

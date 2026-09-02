@@ -1,0 +1,12 @@
+---
+- name: Install nvidia drivers
+  hosts: lambda
+  become: true
+
+  tasks:
+
+    - name: Install Nvidia  dirver
+      command: ubuntu-drivers install
+
+    - name: Reboot
+      reboot:

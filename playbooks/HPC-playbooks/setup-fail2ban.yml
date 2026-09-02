@@ -1,0 +1,32 @@
+---
+- name: Install fail2ban
+  hosts: SuperComputer
+  become: true
+
+  handlers:
+    - name: restart fail2ban
+      service:
+        name: fail2ban
+        state: restarted
+
+  tasks:
+    - name: Install fail2ban
+      apt:
+        name: fail2ban
+        state: present
+        update_cache: true
+
+    - name: Setup jail config file (SSH)
+      template:
+        src: ./templates/jail.local.j2
+        dest: /etc/fail2ban/jail.local
+        owner: root
+        group: root
+        mode: '0644'
+      notify: restart fail2ban
+
+    - name: Ensure fail2ban started and enabled
+      service:
+        name: fail2ban
+        state: started
+        enabled: true

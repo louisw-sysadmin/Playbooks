@@ -1,0 +1,61 @@
+---
+- name: Setup firewall on Lambda machine
+  hosts: lambda
+  become: true
+
+  tasks:
+    - name: set default deny policy for incoming
+      community.general.ufw:
+        direction: incoming
+        policy: deny
+
+    - name: set default allow policy for outgoing
+      community.general.ufw:
+        direction: outgoing
+        policy: allow
+
+    - name: allow ssh
+      community.general.ufw:
+        rule: allow
+        name: OpenSSH
+
+    - name: allow Checkmk
+      community.general.ufw:
+        rule: allow
+        proto: tcp
+        src: 10.64.0.156
+        port: '6556'
+
+    - name: allow NTP
+      community.general.ufw:
+        rule: allow
+        proto: udp
+        port: '123'
+
+    - name: allow SNMP
+      community.general.ufw:
+        rule: allow
+        proto: udp
+        src: 10.64.0.0/24
+        port: '161'
+
+    - name: allow DNS
+      community.general.ufw:
+        rule: allow
+        proto: udp
+        port: '53'
+
+    - name: Allow ping from Internal network
+      community.general.ufw:
+        rule: allow
+        proto: tcp
+        src: 10.64.0.0/24
+
+
+    - name: set logging
+      community.general.ufw:
+        logging: 'on'
+
+    - name: enable firewall
+      community.general.ufw:
+        state: enabled

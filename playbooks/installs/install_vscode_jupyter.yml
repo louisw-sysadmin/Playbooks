@@ -1,6 +1,6 @@
 ---
 - name: Install VS Code + Jupyter Notebook (PEP668 Compliant)
-  hosts: all
+  hosts: lambda
   become: yes
 
   tasks:
@@ -34,7 +34,7 @@
         name: jupyter-notebook
         state: present
         update_cache: yes
-    - name: Install jupyter-CORE from apt 
+    - name: Install jupyter-CORE from apt
       apt:
         name: jupyter-core
         state: present

@@ -1,0 +1,29 @@
+---
+- name: Update HPC hosts
+  become: true
+  hosts: SuperComputer
+
+
+  tasks:
+
+    - name: update cache
+      apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Upgrade Machines
+      apt:
+        name: "*"
+        state: latest
+
+    - name: Check if reboot is required
+      stat:
+        path: /var/run/reboot-required
+      register: rebootss
+
+
+    - name: Rebooting update requries it
+      reboot:
+        msg: "Rebooting after package updates"
+        reboot_timeout: 900
+      when: rebootss.stat.exists
